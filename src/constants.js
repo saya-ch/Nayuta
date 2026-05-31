@@ -1,0 +1,21 @@
+export const COLORS = {
+  ABYSS_BLUE: '#0A0E1A',
+  NEBULA_PURPLE: '#1A1035',
+  FLUORESCENT_CYAN: '#00FFD4',
+  VOID_ORANGE: '#FF6B35',
+  MOONLIGHT_WHITE: '#E8E6F0',
+  STARDUST_GRAY: '#6B6B8D',
+  DEEP_RED: '#2A0A1A',
+  VOID_BLACK: '#0A0005',
+};
+
+export const DEPTH_COLORS = [
+  '#1A2744',
+  '#1A1035',
+  '#2A0A1A',
+  '#0A0005',
+];
+
+export const GAME_WIDTH = 1280;
+export const GAME_HEIGHT = 720;
+export const TARGET_FPS = 60;

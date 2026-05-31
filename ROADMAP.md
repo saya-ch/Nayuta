@@ -1,0 +1,47 @@
+# ROADMAP.md — Nayuta 开发路线图
+
+## 基础架构
+- [x] T001 Code 搭建项目基础结构：HTML5 Canvas 游戏主循环与场景切换系统 <!-- 2026-05-31T17:10Z -->
+- [x] T002 Code 实现场景管理器：支持多场景（主菜单、游戏、暂停）切换与过渡动画 <!-- 2026-05-31T17:10Z -->
+
+## 核心玩法
+- [x] T003 Code 实现玩家角色控制：移动、跳跃、交互，基于 Canvas 2D <!-- 2026-05-31T17:10Z -->
+- [x] T004 Code 实现记忆碎片收集系统：可拾取物品、计数、触发剧情 <!-- 2026-05-31T17:10Z -->
+- [ ] T005 Code 实现基础解谜机制：开关、压力板、光线反射
+
+## 视觉与氛围
+- [x] T006 Shader 用 algorithmic-art 编写动态星空粒子背景 shader <!-- 2026-05-31T17:15Z -->
+- [ ] T007 Shader 用 algorithmic-art 编写深渊雾气与侵蚀效果 shader
+- [ ] T008 Art 用 byted-seedream-image-gen 生成主角 Nayuta 概念图与精灵图 <!-- FAILED: 缺少 ARK_API_KEY -->
+- [ ] T009 Art 用 byted-seedream-image-gen 生成深渊场景概念图与环境素材 <!-- FAILED: 缺少 ARK_API_KEY -->
+- [ ] T010 Art 用 byted-seedream-image-gen 生成记忆之锚与关键道具素材 <!-- FAILED: 缺少 ARK_API_KEY -->
+
+## UI/UX
+- [x] T011 UI 使用 frontend-skill 实现主菜单界面（含动态背景） <!-- 2026-05-31T17:20Z -->
+- [x] T012 UI 使用 frontend-skill 实现游戏内 HUD（记忆之锚计数、深度指示器） <!-- 2026-05-31T17:10Z -->
+- [ ] T013 UI 使用 frontend-skill 实现暂停菜单与设置界面
+
+## 音频
+- [ ] T014 Code 实现音频系统：BGM 切换、环境音效、交互音效
+
+## 关卡设计
+- [ ] T015 Code 实现第1层深渊关卡：浅层记忆 — 蓝色童话风
+- [ ] T016 Code 实现第2层深渊关卡：中层记忆 — 紫色神秘风
+- [ ] T017 Code 实现第3层深渊关卡：深层记忆 — 红色压迫风
+- [ ] T018 Code 实现第4层深渊关卡：最深层 — 纯黑宇宙恐怖
+
+## 叙事与侵蚀系统
+- [ ] T019 Code 实现现实侵蚀系统：随深度增加 UI/画面/音效逐渐异变
+- [ ] T020 Code 实现零对白叙事系统：环境叙事、光影暗示、碎片化故事
+
+## 视频与宣传
+- [ ] T021 Video 用 byted-seedance-video-gen 制作主菜单动态背景短片
+- [ ] T022 Video 用 byted-seedance-video-gen 制作游戏宣传短片
+
+## 性能与优化
+- [ ] T023 Perf 性能分析，优化渲染至 60fps
+- [ ] T024 Perf 实现资源懒加载与场景预加载
+
+## 发布准备
+- [ ] T025 Docs 编写 README 与操作说明
+- [ ] T026 Docs 编写 itch.io/Steam 商店页面文案

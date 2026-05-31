@@ -1,0 +1,14 @@
+{
+  "name": "nayuta",
+  "version": "0.1.0",
+  "description": "Nayuta - A dark fairy tale cosmic horror exploration game",
+  "main": "src/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0"
+  }
+}
