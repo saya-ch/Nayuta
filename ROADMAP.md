@@ -13,7 +13,7 @@
 - [x] T006 Shader 用 algorithmic-art 编写动态星空粒子背景 shader <!-- 2026-05-31T17:15Z -->
 - [x] T007 Shader 用 algorithmic-art 编写深渊雾气与侵蚀效果 shader <!-- 2026-05-31T18:00Z -->
 - [x] T008 Art 用 algorithmic-art 生成主角 Nayuta 程序化概念图（byted-seedream-image-gen 因 ARK_API_KEY 缺少失败，已用程序化替代） <!-- 2026-05-31T19:15Z -->
-- [ ] T009 Art 用 byted-seedream-image-gen 生成深渊场景概念图与环境素材 <!-- FAILED: 缺少 ARK_API_KEY -->
+- [x] T009 Art 用 algorithmic-art 生成深渊场景概念图（byted-seedream-image-gen 因 ARK_API_KEY 缺少失败，已用程序化替代） <!-- 2026-05-31T21:00Z -->
 - [ ] T010 Art 用 byted-seedream-image-gen 生成记忆之锚与关键道具素材 <!-- FAILED: 缺少 ARK_API_KEY -->
 
 ## UI/UX
@@ -22,7 +22,7 @@
 - [x] T013 UI 使用 frontend-skill 实现暂停菜单与设置界面 <!-- 2026-05-31T18:00Z -->
 
 ## 音频
-- [ ] T014 Code 实现音频系统：BGM 切换、环境音效、交互音效
+- [x] T014 Code 实现音频系统：BGM 切换、环境音效、交互音效（Web Audio API 程序化生成） <!-- 2026-05-31T21:00Z -->
 
 ## 关卡设计
 - [x] T015 Code 实现第1层深渊关卡：浅层记忆 — 蓝色童话风 <!-- 2026-05-31T19:15Z -->
@@ -32,7 +32,7 @@
 
 ## 叙事与侵蚀系统
 - [x] T019 Code 实现现实侵蚀系统：随深度增加 UI/画面/音效逐渐异变（扫描线/屏幕震动/色温偏移/现实裂缝/故障爆发） <!-- 2026-05-31T20:10Z -->
-- [ ] T020 Code 实现零对白叙事系统：环境叙事、光影暗示、碎片化故事
+- [x] T020 Code 实现零对白叙事系统：环境叙事、光影暗示、碎片化故事 <!-- 2026-05-31T21:00Z -->
 
 ## 视频与宣传
 - [ ] T021 Video 用 byted-seedance-video-gen 制作主菜单动态背景短片

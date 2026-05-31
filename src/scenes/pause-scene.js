@@ -2,10 +2,11 @@ import { Scene } from '../core/scene.js';
 import { COLORS } from '../constants.js';
 
 export class PauseScene extends Scene {
-  constructor(input, sceneManager) {
+  constructor(input, sceneManager, audioSystem) {
     super('pause');
     this.input = input;
     this.sceneManager = sceneManager;
+    this.audio = audioSystem;
     this.selectedIndex = 0;
     this.menuItems = ['继续探索', '设置', '返回主菜单'];
     this.time = 0;
@@ -16,11 +17,13 @@ export class PauseScene extends Scene {
       { label: '粒子效果', key: 'particles', values: ['高', '中', '低'], valueIndex: 0 },
       { label: '雾气浓度', key: 'fogDensity', values: ['浓', '中', '淡'], valueIndex: 1 },
       { label: '侵蚀效果', key: 'erosion', values: ['开', '关'], valueIndex: 0 },
+      { label: '音量', key: 'volume', values: ['高', '中', '低', '静音'], valueIndex: 1 },
     ];
     this.settings = {
       particles: 0,
       fogDensity: 1,
       erosion: 0,
+      volume: 1,
     };
   }
 
@@ -71,11 +74,13 @@ export class PauseScene extends Scene {
       const item = this.settingsItems[this.settingsIndex];
       item.valueIndex = (item.valueIndex - 1 + item.values.length) % item.values.length;
       this.settings[item.key] = item.valueIndex;
+      this._applySetting(item.key, item.valueIndex);
     }
     if (this.input.justPressed('ArrowRight') || this.input.justPressed('KeyD')) {
       const item = this.settingsItems[this.settingsIndex];
       item.valueIndex = (item.valueIndex + 1) % item.values.length;
       this.settings[item.key] = item.valueIndex;
+      this._applySetting(item.key, item.valueIndex);
     }
     if (this.input.justPressed('Escape') || this.input.justPressed('Enter') || this.input.justPressed('Space')) {
       this.showSettings = false;
@@ -94,6 +99,16 @@ export class PauseScene extends Scene {
       case 2:
         this.sceneManager.switchTo('menu');
         break;
+    }
+  }
+
+  _applySetting(key, valueIndex) {
+    if (key === 'volume' && this.audio) {
+      const volumes = [0.8, 0.5, 0.2, 0];
+      this.audio.setVolume(volumes[valueIndex]);
+      if (valueIndex === 3) {
+        this.audio.toggleMute();
+      }
     }
   }
 

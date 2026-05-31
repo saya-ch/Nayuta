@@ -2,10 +2,11 @@ import { Scene } from '../core/scene.js';
 import { COLORS } from '../constants.js';
 
 export class MenuScene extends Scene {
-  constructor(input, sceneManager) {
+  constructor(input, sceneManager, audioSystem) {
     super('menu');
     this.input = input;
     this.sceneManager = sceneManager;
+    this.audio = audioSystem;
     this.selectedIndex = 0;
     this.menuItems = ['开始探索', '设置', '关于'];
     this.stars = [];
@@ -89,6 +90,9 @@ export class MenuScene extends Scene {
     this.menuAlpha = 0;
     this.hintAlpha = 0;
     this.selectedIndex = 0;
+    if (this.audio) {
+      this.audio.playBGM(-1);
+    }
   }
 
   onExit() {
@@ -119,11 +123,14 @@ export class MenuScene extends Scene {
 
     if (this.input.justPressed('ArrowUp') || this.input.justPressed('KeyW')) {
       this.selectedIndex = (this.selectedIndex - 1 + this.menuItems.length) % this.menuItems.length;
+      if (this.audio) this.audio.playSFX('menuSelect');
     }
     if (this.input.justPressed('ArrowDown') || this.input.justPressed('KeyS')) {
       this.selectedIndex = (this.selectedIndex + 1) % this.menuItems.length;
+      if (this.audio) this.audio.playSFX('menuSelect');
     }
     if (this.input.justPressed('Enter') || this.input.justPressed('Space')) {
+      if (this.audio) this.audio.playSFX('menuConfirm');
       this._selectItem();
     }
 

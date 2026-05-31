@@ -49,6 +49,7 @@ npm run build   # 构建生产版本
 ## 技术栈
 
 - HTML5 Canvas 2D 渲染
+- Web Audio API 程序化音频生成
 - Vite 构建工具
 - 原生 JavaScript（ES Modules）
 - p5.js 生成艺术（算法视觉特效）

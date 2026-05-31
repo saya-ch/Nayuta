@@ -2,12 +2,14 @@ import { Scene } from '../core/scene.js';
 import { COLORS, DEPTH_COLORS } from '../constants.js';
 import { PuzzleManager } from '../core/puzzle-manager.js';
 import { LevelData } from '../core/level-data.js';
+import { NarrativeSystem } from '../core/narrative-system.js';
 
 export class GameScene extends Scene {
-  constructor(input, sceneManager) {
+  constructor(input, sceneManager, audioSystem) {
     super('game');
     this.input = input;
     this.sceneManager = sceneManager;
+    this.audio = audioSystem;
     this.player = { x: 100, y: 300, vx: 0, vy: 0, onGround: false, facing: 1 };
     this.anchors = [];
     this.anchorCount = 0;
@@ -17,6 +19,7 @@ export class GameScene extends Scene {
     this.time = 0;
     this.erosionLevel = 0;
     this.puzzleManager = new PuzzleManager();
+    this.narrativeSystem = new NarrativeSystem();
     this.platforms = [];
     this.decorations = [];
     this.currentLevel = null;
@@ -52,6 +55,10 @@ export class GameScene extends Scene {
   onEnter() {
     super.onEnter();
     this._loadLevel(this.depth);
+    if (this.audio) {
+      this.audio.playBGM(this.depth);
+      this.audio.playAmbient(this.depth);
+    }
   }
 
   _loadLevel(depthIndex) {
@@ -85,7 +92,10 @@ export class GameScene extends Scene {
     }
     this.puzzleManager.onSolve = () => {
       this.levelComplete = true;
+      if (this.audio) this.audio.playSFX('levelComplete');
     };
+
+    this.narrativeSystem.loadLevelNarrative(depthIndex);
 
     this._generateParticles(level);
     this._generateStars(level);
@@ -230,10 +240,12 @@ export class GameScene extends Scene {
     if ((this.input.justPressed('ArrowUp') || this.input.justPressed('KeyW') || this.input.justPressed('Space')) && this.player.onGround) {
       this.player.vy = jumpForce;
       this.player.onGround = false;
+      if (this.audio) this.audio.playSFX('jump');
     }
 
     if (this.input.justPressed('KeyE')) {
-      this.puzzleManager.tryInteract(this.player.x, this.player.y);
+      const interacted = this.puzzleManager.tryInteract(this.player.x, this.player.y);
+      if (interacted && this.audio) this.audio.playSFX('switchToggle');
     }
 
     this.player.vy += gravity * dtSec;
@@ -284,6 +296,7 @@ export class GameScene extends Scene {
       if (Math.sqrt(dx * dx + dy * dy) < 30) {
         anchor.collected = true;
         this.anchorCount++;
+        if (this.audio) this.audio.playSFX('anchorCollect');
       }
     }
 
@@ -317,6 +330,7 @@ export class GameScene extends Scene {
         this.glitchBurst = true;
         this.glitchBurstTimer = 200;
         this.glitchTimer = 8000 + Math.random() * 7000;
+        if (this.audio) this.audio.playSFX('erosionGlitch');
       }
     }
 
@@ -349,6 +363,8 @@ export class GameScene extends Scene {
     this._updateRealityCracks(dt);
 
     this.puzzleManager.update(dt, this.player.x, this.player.y - 24, this.player.onGround);
+
+    this.narrativeSystem.update(dt, this.player.x, this.player.y - 24, this.anchorCount, this.anchors.length);
 
     this._updateInteractHint();
 
@@ -501,6 +517,7 @@ export class GameScene extends Scene {
     this._renderDecorations(ctx, w, h);
     this._renderPlatforms(ctx, w, h, level);
     this._renderAnchors(ctx, w, h);
+    this.narrativeSystem.renderFragments(ctx);
     this.puzzleManager.render(ctx);
     this._renderParticles(ctx, w, h, level);
     this._renderPlayerTrail(ctx);
@@ -512,6 +529,9 @@ export class GameScene extends Scene {
     this._renderScanLines(ctx, w, h);
     this._renderRealityCracks(ctx, w, h);
     this._renderDepthEffects(ctx, w, h);
+    this.narrativeSystem.renderLightFlares(ctx);
+    this.narrativeSystem.renderWhisperParticles(ctx);
+    this.narrativeSystem.renderNarrativeEvent(ctx, w, h, this.depth);
 
     if (this.levelComplete) {
       this._renderLevelComplete(ctx, w, h, level);
