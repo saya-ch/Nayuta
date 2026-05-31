@@ -26,6 +26,23 @@ export class GameScene extends Scene {
     this.levelCompleteAlpha = 0;
     this.transitioning = false;
     this.transitionAlpha = 0;
+    this.levelIntroAlpha = 0;
+    this.levelIntroTimer = 0;
+    this.showingLevelIntro = false;
+    this.transitionPhase = 0;
+    this.transitionProgress = 0;
+    this.nextDepth = 0;
+    this.fallStreaks = [];
+    this.vignetteRadius = 1;
+    this.playerTrail = [];
+    this.erosionTime = 0;
+    this.scanLines = [];
+    this.screenShake = { x: 0, y: 0, intensity: 0 };
+    this.colorShiftAmount = 0;
+    this.glitchTimer = 0;
+    this.glitchBurst = false;
+    this.glitchBurstTimer = 0;
+    this.realityCracks = [];
   }
 
   init() {
@@ -78,6 +95,21 @@ export class GameScene extends Scene {
     this.erosionLevel = 0;
     this.interactHint = '';
     this.interactHintAlpha = 0;
+
+    this.showingLevelIntro = true;
+    this.levelIntroAlpha = 0;
+    this.levelIntroTimer = 0;
+    this.playerTrail = [];
+    this.erosionTime = 0;
+    this.scanLines = [];
+    this.screenShake = { x: 0, y: 0, intensity: 0 };
+    this.colorShiftAmount = 0;
+    this.glitchTimer = 8000 + Math.random() * 7000;
+    this.glitchBurst = false;
+    this.glitchBurstTimer = 0;
+    this.realityCracks = [];
+    this._initScanLines();
+    this._initRealityCracks();
   }
 
   _generateParticles(level) {
@@ -92,7 +124,21 @@ export class GameScene extends Scene {
         size: Math.random() * 3 + 1,
         alpha: Math.random() * 0.5 + 0.1,
         isCyan: Math.random() > 0.6,
+        colorType: 'default',
       });
+    }
+    this._assignParticleColors();
+  }
+
+  _assignParticleColors() {
+    for (const p of this.particles) {
+      if (this.depth >= 2 && Math.random() < 0.3) {
+        p.colorType = 'orange';
+      } else if (this.depth >= 1 && Math.random() < 0.35) {
+        p.colorType = 'purple';
+      } else {
+        p.colorType = 'default';
+      }
     }
   }
 
@@ -110,20 +156,25 @@ export class GameScene extends Scene {
     }
   }
 
+  _generateFallStreaks() {
+    this.fallStreaks = [];
+    for (let i = 0; i < 60; i++) {
+      this.fallStreaks.push({
+        x: Math.random() * 1280,
+        y: Math.random() * 720,
+        speed: Math.random() * 400 + 200,
+        length: Math.random() * 60 + 20,
+        alpha: Math.random() * 0.6 + 0.2,
+      });
+    }
+  }
+
   update(dt) {
     this.time += dt;
     const dtSec = dt / 1000;
 
     if (this.transitioning) {
-      this.transitionAlpha += dt * 0.003;
-      if (this.transitionAlpha >= 1) {
-        this.transitioning = false;
-        this.transitionAlpha = 1;
-        this._loadLevel(this.depth);
-        setTimeout(() => {
-          this._fadeBackIn();
-        }, 200);
-      }
+      this._updateTransition(dt);
       return;
     }
 
@@ -136,6 +187,10 @@ export class GameScene extends Scene {
       return;
     }
 
+    if (this.showingLevelIntro) {
+      this._updateLevelIntro(dt);
+    }
+
     if (this.levelComplete) {
       this.levelCompleteAlpha = Math.min(1, this.levelCompleteAlpha + dt * 0.001);
       if (this.levelCompleteAlpha >= 1 && this.input.justPressed('Enter')) {
@@ -146,9 +201,14 @@ export class GameScene extends Scene {
           return;
         }
         this.transitioning = true;
+        this.transitionPhase = 1;
+        this.transitionProgress = 0;
         this.transitionAlpha = 0;
+        this.nextDepth = this.depth;
+        this.vignetteRadius = 1;
         this.levelComplete = false;
         this.levelCompleteAlpha = 0;
+        this._generateFallStreaks();
       }
       return;
     }
@@ -207,6 +267,16 @@ export class GameScene extends Scene {
       this.player.vy = 0;
     }
 
+    if (this.depth >= 1) {
+      this.playerTrail.push({ x: this.player.x, y: this.player.y, facing: this.player.facing, alpha: 0.4 });
+      if (this.playerTrail.length > 8) {
+        this.playerTrail.shift();
+      }
+      for (let i = 0; i < this.playerTrail.length; i++) {
+        this.playerTrail[i].alpha *= 0.88;
+      }
+    }
+
     for (const anchor of this.anchors) {
       if (anchor.collected) continue;
       const dx = this.player.x - anchor.x;
@@ -218,8 +288,16 @@ export class GameScene extends Scene {
     }
 
     for (const p of this.particles) {
-      p.x += p.vx;
-      p.y += p.vy;
+      let vxMod = p.vx;
+      let vyMod = p.vy;
+
+      if (this.depth >= 3) {
+        vxMod += (Math.random() - 0.5) * 2;
+        vyMod += (Math.random() - 0.5) * 2;
+      }
+
+      p.x += vxMod;
+      p.y += vyMod;
       if (p.y < -10) {
         p.y = 730;
         p.x = Math.random() * 1280;
@@ -230,12 +308,110 @@ export class GameScene extends Scene {
 
     this.erosionLevel = this.anchorCount / Math.max(1, this.anchors.length);
 
+    this.erosionTime += dt;
+    this.colorShiftAmount = this.depth * 0.25 + this.erosionLevel * 0.15;
+
+    if (this.depth >= 2) {
+      this.glitchTimer -= dt;
+      if (this.glitchTimer <= 0) {
+        this.glitchBurst = true;
+        this.glitchBurstTimer = 200;
+        this.glitchTimer = 8000 + Math.random() * 7000;
+      }
+    }
+
+    if (this.glitchBurst) {
+      this.glitchBurstTimer -= dt;
+      if (this.glitchBurstTimer <= 0) {
+        this.glitchBurst = false;
+      }
+    }
+
+    if (this.depth >= 2) {
+      const shakeChance = this.depth >= 3 ? 0.03 : 0.01;
+      if (Math.random() < shakeChance) {
+        const maxIntensity = this.depth >= 3 ? 5 : 2;
+        this.screenShake.intensity = Math.random() * maxIntensity + 1;
+      }
+    }
+
+    if (this.screenShake.intensity > 0) {
+      this.screenShake.x = (Math.random() - 0.5) * 2 * this.screenShake.intensity;
+      this.screenShake.y = (Math.random() - 0.5) * 2 * this.screenShake.intensity;
+      this.screenShake.intensity *= 0.9;
+      if (this.screenShake.intensity < 0.3) {
+        this.screenShake.intensity = 0;
+        this.screenShake.x = 0;
+        this.screenShake.y = 0;
+      }
+    }
+
+    this._updateRealityCracks(dt);
+
     this.puzzleManager.update(dt, this.player.x, this.player.y - 24, this.player.onGround);
 
     this._updateInteractHint();
 
     if (this.input.justPressed('Escape')) {
       this.sceneManager.switchTo('pause');
+    }
+  }
+
+  _updateTransition(dt) {
+    this.transitionProgress += dt * 0.0008;
+
+    if (this.transitionProgress <= 0.3) {
+      this.transitionPhase = 1;
+      const t = this.transitionProgress / 0.3;
+      this.vignetteRadius = 1 - t * 0.9;
+      this.transitionAlpha = t * 0.6;
+      for (const p of this.particles) {
+        p.vy += 0.5;
+      }
+    } else if (this.transitionProgress <= 0.7) {
+      this.transitionPhase = 2;
+      const t = (this.transitionProgress - 0.3) / 0.4;
+      this.transitionAlpha = 1;
+      this.vignetteRadius = 0.1;
+      for (const s of this.fallStreaks) {
+        s.y -= s.speed * (dt / 1000);
+        if (s.y + s.length < 0) {
+          s.y = 720 + Math.random() * 100;
+          s.x = Math.random() * 1280;
+        }
+      }
+    } else if (this.transitionProgress <= 1.0) {
+      this.transitionPhase = 3;
+      const t = (this.transitionProgress - 0.7) / 0.3;
+      if (this.transitionPhase === 3 && !this._levelLoaded) {
+        this.depth = this.nextDepth;
+        this._loadLevel(this.depth);
+        this._levelLoaded = true;
+      }
+      this.transitionAlpha = 1 - t;
+      this.vignetteRadius = 0.1 + t * 0.9;
+    } else {
+      this.transitioning = false;
+      this.transitionAlpha = 0;
+      this.transitionPhase = 0;
+      this.transitionProgress = 0;
+      this.vignetteRadius = 1;
+      this._levelLoaded = false;
+    }
+  }
+
+  _updateLevelIntro(dt) {
+    this.levelIntroTimer += dt;
+
+    if (this.levelIntroTimer < 600) {
+      this.levelIntroAlpha = this.levelIntroTimer / 600;
+    } else if (this.levelIntroTimer < 2400) {
+      this.levelIntroAlpha = 1;
+    } else if (this.levelIntroTimer < 3000) {
+      this.levelIntroAlpha = 1 - (this.levelIntroTimer - 2400) / 600;
+    } else {
+      this.levelIntroAlpha = 0;
+      this.showingLevelIntro = false;
     }
   }
 
@@ -309,8 +485,15 @@ export class GameScene extends Scene {
 
     const level = this.currentLevel || LevelData.getLevel(0);
 
+    ctx.save();
+    ctx.translate(this.screenShake.x, this.screenShake.y);
+
+    if (this.glitchBurst) {
+      ctx.translate((Math.random() - 0.5) * 10, 0);
+    }
+
     ctx.fillStyle = level.bgColor;
-    ctx.fillRect(0, 0, w, h);
+    ctx.fillRect(-10, -10, w + 20, h + 20);
 
     this._renderLevelBackground(ctx, w, h, level);
     this._renderLevelStars(ctx, w, h);
@@ -320,18 +503,157 @@ export class GameScene extends Scene {
     this._renderAnchors(ctx, w, h);
     this.puzzleManager.render(ctx);
     this._renderParticles(ctx, w, h, level);
+    this._renderPlayerTrail(ctx);
     this._renderPlayer(ctx, w, h);
     this._renderInteractHint(ctx, w, h);
     this._renderHUD(ctx, w, h, level);
     this._renderErosionOverlay(ctx, w, h);
+    this._renderColorShift(ctx, w, h);
+    this._renderScanLines(ctx, w, h);
+    this._renderRealityCracks(ctx, w, h);
+    this._renderDepthEffects(ctx, w, h);
 
     if (this.levelComplete) {
       this._renderLevelComplete(ctx, w, h, level);
     }
 
-    if (this.transitionAlpha > 0) {
+    if (this.showingLevelIntro) {
+      this._renderLevelIntro(ctx, w, h, level);
+    }
+
+    if (this.transitioning) {
+      this._renderTransition(ctx, w, h);
+    } else if (this.transitionAlpha > 0) {
       ctx.fillStyle = `rgba(10, 14, 26, ${this.transitionAlpha})`;
+      ctx.fillRect(-10, -10, w + 20, h + 20);
+    }
+
+    ctx.restore();
+  }
+
+  _renderTransition(ctx, w, h) {
+    if (this.transitionPhase === 1) {
+      const cx = w / 2;
+      const cy = h / 2;
+      const maxR = Math.sqrt(cx * cx + cy * cy);
+      const r = maxR * this.vignetteRadius;
+      const gradient = ctx.createRadialGradient(cx, cy, r * 0.5, cx, cy, maxR);
+      gradient.addColorStop(0, 'rgba(10, 14, 26, 0)');
+      gradient.addColorStop(0.6, `rgba(10, 14, 26, ${this.transitionAlpha * 0.5})`);
+      gradient.addColorStop(1, `rgba(10, 14, 26, ${this.transitionAlpha})`);
+      ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, w, h);
+    } else if (this.transitionPhase === 2) {
+      ctx.fillStyle = 'rgba(10, 14, 26, 1)';
+      ctx.fillRect(0, 0, w, h);
+
+      for (const s of this.fallStreaks) {
+        const gradient = ctx.createLinearGradient(s.x, s.y + s.length, s.x, s.y);
+        gradient.addColorStop(0, `rgba(0, 255, 212, 0)`);
+        gradient.addColorStop(1, `rgba(0, 255, 212, ${s.alpha})`);
+        ctx.strokeStyle = gradient;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(s.x, s.y + s.length);
+        ctx.lineTo(s.x, s.y);
+        ctx.stroke();
+      }
+
+      const displayDepth = this.nextDepth + 1;
+      const t = (this.transitionProgress - 0.3) / 0.4;
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = '600 72px "Segoe UI", system-ui, sans-serif';
+      ctx.fillStyle = `rgba(0, 255, 212, ${0.3 + 0.4 * Math.sin(this.time * 0.005)})`;
+      ctx.shadowColor = COLORS.FLUORESCENT_CYAN;
+      ctx.shadowBlur = 30;
+      ctx.fillText(`${displayDepth}`, w / 2, h / 2);
+      ctx.shadowBlur = 0;
+      ctx.font = '300 16px "Segoe UI", system-ui, sans-serif';
+      ctx.fillStyle = `rgba(107, 107, 141, ${0.5 + 0.3 * Math.sin(this.time * 0.003)})`;
+      ctx.fillText('深度', w / 2, h / 2 + 50);
+      ctx.restore();
+    } else if (this.transitionPhase === 3) {
+      const cx = w / 2;
+      const cy = h / 2;
+      const maxR = Math.sqrt(cx * cx + cy * cy);
+      const t = (this.transitionProgress - 0.7) / 0.3;
+      const r = maxR * t;
+      const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxR);
+      gradient.addColorStop(0, `rgba(10, 14, 26, 0)`);
+      gradient.addColorStop(Math.min(t, 0.99), `rgba(10, 14, 26, 0)`);
+      gradient.addColorStop(1, `rgba(10, 14, 26, ${1 - t})`);
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, w, h);
+    }
+  }
+
+  _renderLevelIntro(ctx, w, h, level) {
+    if (this.levelIntroAlpha <= 0) return;
+
+    ctx.save();
+    ctx.globalAlpha = this.levelIntroAlpha;
+
+    const cx = w / 2;
+    const cy = h / 2;
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    ctx.shadowColor = COLORS.FLUORESCENT_CYAN;
+    ctx.shadowBlur = 40 * this.levelIntroAlpha;
+    ctx.font = '600 48px "Segoe UI", system-ui, sans-serif';
+    ctx.fillStyle = COLORS.FLUORESCENT_CYAN;
+    ctx.fillText(level.name, cx, cy - 20);
+    ctx.shadowBlur = 0;
+
+    ctx.font = '300 18px "Segoe UI", system-ui, sans-serif';
+    ctx.fillStyle = COLORS.STARDUST_GRAY;
+    ctx.fillText(level.subtitle || '', cx, cy + 25);
+
+    const lineProgress = Math.min(1, this.levelIntroTimer / 800);
+    const lineWidth = lineProgress * 200;
+    ctx.strokeStyle = COLORS.FLUORESCENT_CYAN;
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = this.levelIntroAlpha * 0.6;
+    ctx.beginPath();
+    ctx.moveTo(cx - lineWidth / 2, cy + 48);
+    ctx.lineTo(cx + lineWidth / 2, cy + 48);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  _renderDepthEffects(ctx, w, h) {
+    if (this.depth < 1) return;
+
+    const vignetteStrength = this.depth * 0.12;
+    const cx = w / 2;
+    const cy = h / 2;
+    const maxR = Math.sqrt(cx * cx + cy * cy);
+    const gradient = ctx.createRadialGradient(cx, cy, maxR * 0.4, cx, cy, maxR);
+    gradient.addColorStop(0, 'rgba(10, 14, 26, 0)');
+    gradient.addColorStop(1, `rgba(10, 14, 26, ${vignetteStrength})`);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  _renderPlayerTrail(ctx) {
+    if (this.depth < 1) return;
+
+    const size = 16;
+    for (const t of this.playerTrail) {
+      if (t.alpha < 0.02) continue;
+      ctx.save();
+      ctx.globalAlpha = t.alpha * 0.3;
+      ctx.translate(t.x, t.y);
+      ctx.scale(t.facing, 1);
+      ctx.fillStyle = COLORS.FLUORESCENT_CYAN;
+      ctx.beginPath();
+      ctx.ellipse(0, -size * 1.5, size * 0.8, size * 1.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
     }
   }
 
@@ -516,8 +838,13 @@ export class GameScene extends Scene {
       const pulseSize = 1 + 0.3 * Math.sin(anchor.pulse);
       const size = anchor.size * pulseSize;
 
+      let pulseMultiplier = 1;
+      if (this.depth >= 3) {
+        pulseMultiplier = 1 + 0.5 * Math.sin(this.time * 0.02 + anchor.pulse * 3);
+      }
+
       ctx.beginPath();
-      ctx.arc(anchor.x, anchor.y, size * 3, 0, Math.PI * 2);
+      ctx.arc(anchor.x, anchor.y, size * 3 * pulseMultiplier, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(0, 255, 212, 0.08)';
       ctx.fill();
 
@@ -539,7 +866,11 @@ export class GameScene extends Scene {
   _renderParticles(ctx, w, h, level) {
     for (const p of this.particles) {
       const alpha = p.alpha;
-      if (p.isCyan) {
+      if (p.colorType === 'orange') {
+        ctx.fillStyle = `rgba(255, 107, 53, ${alpha})`;
+      } else if (p.colorType === 'purple') {
+        ctx.fillStyle = `rgba(138, 43, 226, ${alpha})`;
+      } else if (p.isCyan) {
         ctx.fillStyle = `rgba(0, 255, 212, ${alpha})`;
       } else {
         ctx.fillStyle = `rgba(232, 230, 240, ${alpha})`;
@@ -568,10 +899,16 @@ export class GameScene extends Scene {
     ctx.ellipse(0, -size * 2.5, size * 0.6, size * 0.5, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = COLORS.FLUORESCENT_CYAN;
+    const eyeColor = this.depth >= 3 ? COLORS.VOID_ORANGE : COLORS.FLUORESCENT_CYAN;
+    ctx.fillStyle = eyeColor;
     ctx.beginPath();
     ctx.arc(3, -size * 2.6, 2, 0, Math.PI * 2);
     ctx.fill();
+
+    if (this.depth >= 2) {
+      const flicker = Math.sin(this.time * 0.03) > 0.3 ? 1 : 0.3;
+      ctx.globalAlpha = flicker;
+    }
 
     ctx.fillStyle = '#1A1035';
     ctx.beginPath();
@@ -589,6 +926,7 @@ export class GameScene extends Scene {
     ctx.closePath();
     ctx.fill();
 
+    ctx.globalAlpha = 1;
     ctx.restore();
   }
 
@@ -616,8 +954,12 @@ export class GameScene extends Scene {
       const ay = hudY;
 
       if (i < this.anchorCount) {
+        let pulseSize = 8;
+        if (this.depth >= 3) {
+          pulseSize = 8 + 3 * Math.sin(this.time * 0.02 + i * 2);
+        }
         ctx.beginPath();
-        ctx.arc(ax, ay, 8, 0, Math.PI * 2);
+        ctx.arc(ax, ay, pulseSize, 0, Math.PI * 2);
         ctx.fillStyle = COLORS.FLUORESCENT_CYAN;
         ctx.shadowColor = COLORS.FLUORESCENT_CYAN;
         ctx.shadowBlur = 10;
@@ -632,10 +974,19 @@ export class GameScene extends Scene {
       }
     }
 
+    let depthText = `深度 ${this.depth + 1}`;
+    if (this.depth >= 2) {
+      const glitchChars = '!@#$%^&*<>[]{}|~';
+      if (Math.random() < 0.08) {
+        const idx = Math.floor(Math.random() * depthText.length);
+        depthText = depthText.substring(0, idx) + glitchChars[Math.floor(Math.random() * glitchChars.length)] + depthText.substring(idx + 1);
+      }
+    }
+
     ctx.font = '300 14px "Segoe UI", system-ui, sans-serif';
     ctx.fillStyle = COLORS.STARDUST_GRAY;
     ctx.textAlign = 'right';
-    ctx.fillText(`深度 ${this.depth + 1}`, w - 30, 30);
+    ctx.fillText(depthText, w - 30, 30);
 
     ctx.font = '300 12px "Segoe UI", system-ui, sans-serif';
     ctx.fillStyle = 'rgba(107, 107, 141, 0.6)';
@@ -645,9 +996,10 @@ export class GameScene extends Scene {
   }
 
   _renderErosionOverlay(ctx, w, h) {
-    if (this.erosionLevel < 0.1) return;
+    const effectiveErosion = this.erosionLevel * 0.6 + this.depth * 0.15;
+    if (effectiveErosion < 0.05) return;
 
-    const intensity = this.erosionLevel;
+    const intensity = Math.min(1, effectiveErosion);
     const level = this.currentLevel;
     const depthIndex = level ? level.depthIndex : 0;
 
@@ -735,6 +1087,219 @@ export class GameScene extends Scene {
       ctx.fillText('按 Enter 继续深入', w / 2, h * 0.62);
     }
 
+    ctx.restore();
+  }
+
+  _initScanLines() {
+    this.scanLines = [];
+    for (let y = 0; y < 720; y += 3) {
+      this.scanLines.push({
+        y,
+        isGlitch: Math.random() < 0.05,
+        offset: Math.random() * 6 - 3,
+        thickness: 1,
+      });
+    }
+  }
+
+  _renderScanLines(ctx, w, h) {
+    if (this.depth < 1) return;
+
+    const baseAlpha = this.depth === 1 ? 0.02 : this.depth === 2 ? 0.04 : 0.07;
+    const glitchBoost = this.glitchBurst ? 0.15 : 0;
+
+    ctx.save();
+    for (const line of this.scanLines) {
+      const alpha = line.isGlitch ? baseAlpha * 3 + glitchBoost : baseAlpha + glitchBoost * 0.3;
+      if (alpha < 0.005) continue;
+
+      const shift = line.isGlitch ? line.offset + (this.glitchBurst ? (Math.random() - 0.5) * 20 : 0) : 0;
+
+      if (this.depth >= 3 && line.isGlitch) {
+        ctx.fillStyle = `rgba(255, 107, 53, ${alpha})`;
+        ctx.fillRect(shift, line.y, w, 2);
+        ctx.fillStyle = `rgba(0, 255, 212, ${alpha * 0.5})`;
+        ctx.fillRect(shift + 2, line.y + 1, w, 1);
+      } else {
+        ctx.fillStyle = `rgba(10, 14, 26, ${alpha})`;
+        ctx.fillRect(shift, line.y, w, line.thickness);
+      }
+
+      if (this.depth >= 2 && line.isGlitch && !this.glitchBurst) {
+        if (Math.random() < 0.002) {
+          ctx.fillStyle = `rgba(255, 255, 255, ${0.08 + Math.random() * 0.1})`;
+          ctx.fillRect(shift + Math.random() * w * 0.3, line.y, Math.random() * w * 0.4, 2);
+        }
+      }
+    }
+
+    if (this.glitchBurst) {
+      const burstY = Math.random() * h;
+      const burstH = 10 + Math.random() * 40;
+      ctx.fillStyle = `rgba(255, 107, 53, ${0.08 + Math.random() * 0.07})`;
+      ctx.fillRect((Math.random() - 0.5) * 15, burstY, w, burstH);
+      ctx.fillStyle = `rgba(0, 255, 212, ${0.05})`;
+      ctx.fillRect((Math.random() - 0.5) * 8, burstY + 2, w, burstH * 0.5);
+    }
+
+    ctx.restore();
+  }
+
+  _renderColorShift(ctx, w, h) {
+    if (this.colorShiftAmount < 0.01) return;
+
+    ctx.save();
+    const alpha = Math.min(0.25, this.colorShiftAmount * 0.15);
+
+    if (this.depth >= 2) {
+      const gradient = ctx.createLinearGradient(0, h, 0, 0);
+      gradient.addColorStop(0, `rgba(255, 107, 53, ${alpha * 0.6})`);
+      gradient.addColorStop(0.4, `rgba(180, 40, 20, ${alpha * 0.3})`);
+      gradient.addColorStop(1, 'rgba(10, 14, 26, 0)');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, w, h);
+    } else if (this.depth >= 1) {
+      const gradient = ctx.createLinearGradient(0, h, 0, 0);
+      gradient.addColorStop(0, `rgba(180, 100, 60, ${alpha * 0.3})`);
+      gradient.addColorStop(0.5, `rgba(80, 60, 100, ${alpha * 0.1})`);
+      gradient.addColorStop(1, 'rgba(10, 14, 26, 0)');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    if (this.depth >= 3) {
+      const pulse = Math.sin(this.erosionTime * 0.001) * 0.5 + 0.5;
+      const bleedAlpha = 0.03 * pulse * this.colorShiftAmount;
+      ctx.fillStyle = `rgba(255, 60, 20, ${bleedAlpha})`;
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    ctx.restore();
+  }
+
+  _initRealityCracks() {
+    this.realityCracks = [];
+    if (this.depth < 2) return;
+
+    const crackCount = this.depth >= 3 ? 5 : 2;
+    const edges = ['top', 'bottom', 'left', 'right'];
+
+    for (let i = 0; i < crackCount; i++) {
+      const edge = edges[Math.floor(Math.random() * edges.length)];
+      let x, y, angle;
+
+      switch (edge) {
+        case 'top':
+          x = Math.random() * 1280;
+          y = 0;
+          angle = Math.PI * 0.3 + Math.random() * Math.PI * 0.4;
+          break;
+        case 'bottom':
+          x = Math.random() * 1280;
+          y = 720;
+          angle = -Math.PI * 0.3 - Math.random() * Math.PI * 0.4;
+          break;
+        case 'left':
+          x = 0;
+          y = Math.random() * 720;
+          angle = -Math.PI * 0.2 + Math.random() * Math.PI * 0.4;
+          break;
+        case 'right':
+          x = 1280;
+          y = Math.random() * 720;
+          angle = Math.PI * 0.6 + Math.random() * Math.PI * 0.4;
+          break;
+      }
+
+      const segments = [];
+      const totalSegments = 4 + Math.floor(Math.random() * 6);
+      let cx = x, cy = y, ca = angle;
+
+      for (let j = 0; j < totalSegments; j++) {
+        const len = 15 + Math.random() * 35;
+        const nx = cx + Math.cos(ca) * len;
+        const ny = cy + Math.sin(ca) * len;
+        segments.push({ x1: cx, y1: cy, x2: nx, y2: ny });
+        cx = nx;
+        cy = ny;
+        ca += (Math.random() - 0.5) * 0.8;
+      }
+
+      this.realityCracks.push({
+        segments,
+        growth: 0,
+        maxGrowth: totalSegments,
+        healTimer: 10000 + Math.random() * 15000,
+        age: 0,
+        edge,
+      });
+    }
+  }
+
+  _updateRealityCracks(dt) {
+    for (const crack of this.realityCracks) {
+      crack.age += dt;
+
+      if (crack.growth < crack.maxGrowth) {
+        crack.growth += dt * 0.003;
+        if (crack.growth > crack.maxGrowth) crack.growth = crack.maxGrowth;
+      }
+
+      crack.healTimer -= dt;
+      if (crack.healTimer <= 0) {
+        crack.growth = 0;
+        crack.healTimer = 10000 + Math.random() * 15000;
+        crack.age = 0;
+      }
+    }
+  }
+
+  _renderRealityCracks(ctx, w, h) {
+    if (this.depth < 2) return;
+
+    ctx.save();
+    for (const crack of this.realityCracks) {
+      const visibleSegments = Math.floor(crack.growth);
+      if (visibleSegments <= 0) continue;
+
+      const partialProgress = crack.growth - visibleSegments;
+
+      for (let i = 0; i < Math.min(visibleSegments, crack.segments.length); i++) {
+        const seg = crack.segments[i];
+        const isLast = i === visibleSegments - 1;
+        const segAlpha = isLast ? partialProgress : 1;
+
+        const flicker = Math.sin(this.erosionTime * 0.005 + i * 0.5) * 0.3 + 0.7;
+
+        ctx.strokeStyle = `rgba(255, 107, 53, ${0.4 * segAlpha * flicker})`;
+        ctx.lineWidth = 1.5;
+        ctx.shadowColor = '#FF6B35';
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.moveTo(seg.x1, seg.y1);
+        ctx.lineTo(seg.x2, seg.y2);
+        ctx.stroke();
+
+        ctx.strokeStyle = `rgba(255, 200, 150, ${0.15 * segAlpha * flicker})`;
+        ctx.lineWidth = 0.5;
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.moveTo(seg.x1, seg.y1);
+        ctx.lineTo(seg.x2, seg.y2);
+        ctx.stroke();
+      }
+
+      if (crack.growth > 2) {
+        const tipSeg = crack.segments[Math.min(visibleSegments - 1, crack.segments.length - 1)];
+        const glow = ctx.createRadialGradient(tipSeg.x2, tipSeg.y2, 0, tipSeg.x2, tipSeg.y2, 15);
+        glow.addColorStop(0, `rgba(255, 107, 53, ${0.12 * Math.sin(this.erosionTime * 0.004) * 0.5 + 0.5})`);
+        glow.addColorStop(1, 'rgba(255, 107, 53, 0)');
+        ctx.fillStyle = glow;
+        ctx.shadowBlur = 0;
+        ctx.fillRect(tipSeg.x2 - 15, tipSeg.y2 - 15, 30, 30);
+      }
+    }
+    ctx.shadowBlur = 0;
     ctx.restore();
   }
 }
