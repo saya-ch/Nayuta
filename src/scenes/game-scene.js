@@ -127,7 +127,7 @@ export class GameScene extends Scene {
     this.erosionLevel = this.anchorCount / this.anchors.length;
 
     if (this.input.justPressed('Escape')) {
-      this.sceneManager.switchTo('menu');
+      this.sceneManager.switchTo('pause');
     }
   }
 
@@ -157,6 +157,92 @@ export class GameScene extends Scene {
     gradient.addColorStop(1, 'rgba(10, 14, 26, 0)');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, w, h);
+
+    this._renderAbyssFog(ctx, w, h);
+    this._renderErosionEffect(ctx, w, h);
+  }
+
+  _renderAbyssFog(ctx, w, h) {
+    const breathCycle = Math.sin(this.time * 0.0008) * 0.5 + 0.5;
+    const fogAlpha = 0.15 + this.erosionLevel * 0.2;
+    const driftX = Math.sin(this.time * 0.0003) * 50;
+    const driftY = Math.cos(this.time * 0.00025) * 30;
+
+    const fogLayers = [
+      { cx: w * 0.3 + driftX, cy: h * 0.4 + driftY, r: w * 0.35, color: '26, 16, 53' },
+      { cx: w * 0.7 - driftX * 0.7, cy: h * 0.6 - driftY * 0.5, r: w * 0.3, color: '15, 21, 40' },
+      { cx: w * 0.5 + driftX * 0.3, cy: h * 0.8 + driftY * 0.4, r: w * 0.4, color: '42, 10, 26' },
+    ];
+
+    for (const fog of fogLayers) {
+      const r = fog.r * (0.8 + breathCycle * 0.3);
+      const gradient = ctx.createRadialGradient(fog.cx, fog.cy, 0, fog.cx, fog.cy, r);
+      gradient.addColorStop(0, `rgba(${fog.color}, ${fogAlpha * 0.5})`);
+      gradient.addColorStop(0.4, `rgba(${fog.color}, ${fogAlpha * 0.2})`);
+      gradient.addColorStop(1, 'rgba(10, 14, 26, 0)');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, w, h);
+    }
+  }
+
+  _renderErosionEffect(ctx, w, h) {
+    if (this.erosionLevel < 0.1) return;
+
+    const breathCycle = Math.sin(this.time * 0.001) * 0.5 + 0.5;
+    const intensity = this.erosionLevel;
+
+    const erosionPoints = [
+      { x: w * 0.15, y: h * 0.2 },
+      { x: w * 0.85, y: h * 0.35 },
+      { x: w * 0.6, y: h * 0.7 },
+      { x: w * 0.3, y: h * 0.85 },
+    ];
+
+    for (let i = 0; i < erosionPoints.length; i++) {
+      if (i / erosionPoints.length >= intensity) break;
+
+      const ep = erosionPoints[i];
+      const pulse = Math.sin(this.time * 0.002 + i * 1.5) * 0.5 + 0.5;
+      const r = (60 + intensity * 120) * (0.7 + pulse * 0.3);
+      const cx = ep.x + Math.sin(this.time * 0.0005 + i) * 15;
+      const cy = ep.y + Math.cos(this.time * 0.0004 + i) * 10;
+
+      const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+      const isVoid = i % 2 === 0;
+      if (isVoid) {
+        gradient.addColorStop(0, `rgba(255, 107, 53, ${0.06 * intensity * pulse})`);
+        gradient.addColorStop(0.5, `rgba(255, 0, 68, ${0.03 * intensity})`);
+      } else {
+        gradient.addColorStop(0, `rgba(0, 255, 212, ${0.04 * intensity * pulse})`);
+        gradient.addColorStop(0.5, `rgba(0, 136, 255, ${0.02 * intensity})`);
+      }
+      gradient.addColorStop(1, 'rgba(10, 14, 26, 0)');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, w, h);
+
+      if (isVoid && intensity > 0.3 && pulse > 0.6) {
+        ctx.strokeStyle = `rgba(255, 107, 53, ${0.15 * intensity * pulse})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        const crackAngle = this.time * 0.0003 + i * 2;
+        for (let j = 0; j < 3; j++) {
+          const a = crackAngle + j * Math.PI * 2 / 3;
+          const len = r * 0.7;
+          ctx.moveTo(cx, cy);
+          ctx.lineTo(cx + Math.cos(a) * len, cy + Math.sin(a) * len);
+        }
+        ctx.stroke();
+      }
+    }
+
+    if (intensity > 0.5) {
+      const vignetteAlpha = (intensity - 0.5) * 0.3;
+      const vignette = ctx.createRadialGradient(w / 2, h / 2, w * 0.3, w / 2, h / 2, w * 0.7);
+      vignette.addColorStop(0, 'rgba(10, 14, 26, 0)');
+      vignette.addColorStop(1, `rgba(10, 0, 5, ${vignetteAlpha})`);
+      ctx.fillStyle = vignette;
+      ctx.fillRect(0, 0, w, h);
+    }
   }
 
   _renderGround(ctx, w, h) {

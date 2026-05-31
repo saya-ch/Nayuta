@@ -1,5 +1,24 @@
 # CHANGELOG.md — Nayuta 迭代日志
 
+## [2026-05-31 18:10 迭代2] - 深渊氛围与界面完善 | 所用 skills: algorithmic-art, frontend-skill, byted-seedream-image-gen(失败) | 完成的任务 ID: T007, T013 | 备注: T008 因 ARK_API_KEY 缺少再次失败，已用程序化替代
+
+### 完成内容
+- **深渊雾气与侵蚀效果 (T007)**：使用 algorithmic-art 创建了"Abyssal Erosion"交互式 p5.js 生成艺术，包含三层系统：
+  - 雾气层：多层 Perlin 噪声驱动的漂浮雾气，带呼吸循环
+  - 侵蚀层：噪声驱动的边缘溶解效果，荧光青/虚空橙边缘光
+  - 漂移粒子层：受噪声场影响的漂浮粒子，深度色彩映射
+  - 集成到 GameScene：添加了 `_renderAbyssFog` 和 `_renderErosionEffect` 方法
+- **暂停菜单与设置界面 (T013)**：使用 frontend-skill 创建了 PauseScene：
+  - 暂停菜单：继续探索、设置、返回主菜单
+  - 设置面板：粒子效果、雾气浓度、侵蚀效果开关
+  - 深渊美学设计：荧光青选中指示器、呼吸脉冲标题、暗色半透明遮罩
+  - Esc 键从游戏场景触发暂停（替代直接返回主菜单）
+- **主角概念图生成器**：因 ARK_API_KEY 不可用，创建了程序化 Canvas 概念图生成器
+
+### 异常记录
+- byted-seedream-image-gen 调用再次失败：环境缺少 ARK_API_KEY，T008 标记为 FAILED
+- 已使用程序化 Canvas 绘制作为替代方案（concept_nayuta_generator.html）
+
 ## [2026-05-31 17:30 迭代1] - 项目初始化与基础搭建 | 所用 skills: algorithmic-art, frontend-skill | 完成的任务 ID: T001, T002, T003, T004, T006, T011, T012 | 备注: byted-seedream-image-gen 因缺少 ARK_API_KEY 失败(T008/T009/T010)，待后续重试
 
 ### 完成内容

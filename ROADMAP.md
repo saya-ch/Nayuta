@@ -11,15 +11,15 @@
 
 ## 视觉与氛围
 - [x] T006 Shader 用 algorithmic-art 编写动态星空粒子背景 shader <!-- 2026-05-31T17:15Z -->
-- [ ] T007 Shader 用 algorithmic-art 编写深渊雾气与侵蚀效果 shader
-- [ ] T008 Art 用 byted-seedream-image-gen 生成主角 Nayuta 概念图与精灵图 <!-- FAILED: 缺少 ARK_API_KEY -->
+- [x] T007 Shader 用 algorithmic-art 编写深渊雾气与侵蚀效果 shader <!-- 2026-05-31T18:00Z -->
+- [ ] T008 Art 用 byted-seedream-image-gen 生成主角 Nayuta 概念图与精灵图 <!-- FAILED: 缺少 ARK_API_KEY (重试仍缺) -->
 - [ ] T009 Art 用 byted-seedream-image-gen 生成深渊场景概念图与环境素材 <!-- FAILED: 缺少 ARK_API_KEY -->
 - [ ] T010 Art 用 byted-seedream-image-gen 生成记忆之锚与关键道具素材 <!-- FAILED: 缺少 ARK_API_KEY -->
 
 ## UI/UX
 - [x] T011 UI 使用 frontend-skill 实现主菜单界面（含动态背景） <!-- 2026-05-31T17:20Z -->
 - [x] T012 UI 使用 frontend-skill 实现游戏内 HUD（记忆之锚计数、深度指示器） <!-- 2026-05-31T17:10Z -->
-- [ ] T013 UI 使用 frontend-skill 实现暂停菜单与设置界面
+- [x] T013 UI 使用 frontend-skill 实现暂停菜单与设置界面 <!-- 2026-05-31T18:00Z -->
 
 ## 音频
 - [ ] T014 Code 实现音频系统：BGM 切换、环境音效、交互音效

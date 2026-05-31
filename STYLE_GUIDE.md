@@ -61,10 +61,12 @@
 4. **记忆之锚计数** — 用荧光青光点数量表示，而非数字
 
 ## 范例图片路径
-- 概念图-主角：assets/images/concept_nayuta.png（待生成）
+- 概念图-主角：assets/images/concept_nayuta_generator.html（程序化生成器，待 AI 生图替代）
 - 概念图-场景：assets/images/concept_abyss.png（待生成）
 - 概念图-道具：assets/images/concept_anchor.png（待生成）
 - 情绪板：assets/images/moodboard.png（待生成）
+- 算法艺术-星尘：assets/shaders/abyssal-stardust.html
+- 算法艺术-侵蚀：assets/shaders/abyssal-erosion.html
 
 ## Shader 风格参考
 - 星空粒子：缓慢飘散的星尘，有深度视差
