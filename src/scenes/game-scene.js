@@ -46,6 +46,10 @@ export class GameScene extends Scene {
     this.glitchBurst = false;
     this.glitchBurstTimer = 0;
     this.realityCracks = [];
+    this._bgGradientCache = null;
+    this._bgGradientKey = '';
+    this._scanLineImage = null;
+    this._scanLineDirty = true;
   }
 
   init() {
@@ -678,11 +682,16 @@ export class GameScene extends Scene {
   }
 
   _renderLevelBackground(ctx, w, h, level) {
-    const gradient = ctx.createLinearGradient(0, 0, 0, h);
-    for (const stop of level.bgGradientStops) {
-      gradient.addColorStop(stop.pos, stop.color);
+    const key = level.bgColor + level.fogColor + w + h;
+    if (this._bgGradientKey !== key) {
+      const gradient = ctx.createLinearGradient(0, 0, 0, h);
+      for (const stop of level.bgGradientStops) {
+        gradient.addColorStop(stop.pos, stop.color);
+      }
+      this._bgGradientCache = gradient;
+      this._bgGradientKey = key;
     }
-    ctx.fillStyle = gradient;
+    ctx.fillStyle = this._bgGradientCache;
     ctx.fillRect(0, 0, w, h);
 
     const cx = w * 0.5;
@@ -720,16 +729,14 @@ export class GameScene extends Scene {
     const driftY = Math.cos(this.time * 0.00025) * 25;
 
     const fogLayers = [
-      { cx: w * 0.3 + driftX, cy: h * 0.4 + driftY, r: w * 0.35 },
-      { cx: w * 0.7 - driftX * 0.7, cy: h * 0.6 - driftY * 0.5, r: w * 0.3 },
-      { cx: w * 0.5 + driftX * 0.3, cy: h * 0.8 + driftY * 0.4, r: w * 0.4 },
+      { cx: w * 0.35 + driftX, cy: h * 0.5 + driftY, r: w * 0.45 },
+      { cx: w * 0.65 - driftX * 0.5, cy: h * 0.7 - driftY * 0.3, r: w * 0.4 },
     ];
 
     for (const fog of fogLayers) {
-      const r = fog.r * (0.8 + breathCycle * 0.3);
+      const r = fog.r * (0.85 + breathCycle * 0.15);
       const gradient = ctx.createRadialGradient(fog.cx, fog.cy, 0, fog.cx, fog.cy, r);
-      gradient.addColorStop(0, `rgba(${level.fogColor}, ${fogAlpha * 0.5})`);
-      gradient.addColorStop(0.4, `rgba(${level.fogColor}, ${fogAlpha * 0.2})`);
+      gradient.addColorStop(0, `rgba(${level.fogColor}, ${fogAlpha * 0.4})`);
       gradient.addColorStop(1, 'rgba(10, 14, 26, 0)');
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, w, h);
@@ -872,7 +879,7 @@ export class GameScene extends Scene {
       ctx.arc(anchor.x, anchor.y, size, 0, Math.PI * 2);
       ctx.fillStyle = COLORS.FLUORESCENT_CYAN;
       ctx.shadowColor = COLORS.FLUORESCENT_CYAN;
-      ctx.shadowBlur = 20;
+      ctx.shadowBlur = 12;
       ctx.fill();
       ctx.shadowBlur = 0;
 
@@ -884,21 +891,55 @@ export class GameScene extends Scene {
   }
 
   _renderParticles(ctx, w, h, level) {
+    const orangeParts = [];
+    const purpleParts = [];
+    const cyanParts = [];
+    const whiteParts = [];
+
     for (const p of this.particles) {
-      const alpha = p.alpha;
-      if (p.colorType === 'orange') {
-        ctx.fillStyle = `rgba(255, 107, 53, ${alpha})`;
-      } else if (p.colorType === 'purple') {
-        ctx.fillStyle = `rgba(138, 43, 226, ${alpha})`;
-      } else if (p.isCyan) {
-        ctx.fillStyle = `rgba(0, 255, 212, ${alpha})`;
-      } else {
-        ctx.fillStyle = `rgba(232, 230, 240, ${alpha})`;
-      }
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-      ctx.fill();
+      if (p.colorType === 'orange') orangeParts.push(p);
+      else if (p.colorType === 'purple') purpleParts.push(p);
+      else if (p.isCyan) cyanParts.push(p);
+      else whiteParts.push(p);
     }
+
+    if (orangeParts.length) {
+      ctx.fillStyle = 'rgba(255, 107, 53, 1)';
+      for (const p of orangeParts) {
+        ctx.globalAlpha = p.alpha;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    if (purpleParts.length) {
+      ctx.fillStyle = 'rgba(138, 43, 226, 1)';
+      for (const p of purpleParts) {
+        ctx.globalAlpha = p.alpha;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    if (cyanParts.length) {
+      ctx.fillStyle = 'rgba(0, 255, 212, 1)';
+      for (const p of cyanParts) {
+        ctx.globalAlpha = p.alpha;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    if (whiteParts.length) {
+      ctx.fillStyle = 'rgba(232, 230, 240, 1)';
+      for (const p of whiteParts) {
+        ctx.globalAlpha = p.alpha;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
   }
 
   _renderPlayer(ctx) {
@@ -982,7 +1023,7 @@ export class GameScene extends Scene {
         ctx.arc(ax, ay, pulseSize, 0, Math.PI * 2);
         ctx.fillStyle = COLORS.FLUORESCENT_CYAN;
         ctx.shadowColor = COLORS.FLUORESCENT_CYAN;
-        ctx.shadowBlur = 10;
+        ctx.shadowBlur = 6;
         ctx.fill();
         ctx.shadowBlur = 0;
       } else {
@@ -1020,8 +1061,7 @@ export class GameScene extends Scene {
     if (effectiveErosion < 0.05) return;
 
     const intensity = Math.min(1, effectiveErosion);
-    const level = this.currentLevel;
-    const depthIndex = level ? level.depthIndex : 0;
+    const depthIndex = this.currentLevel ? this.currentLevel.depthIndex : 0;
 
     const erosionPoints = [
       { x: w * 0.15, y: h * 0.2 },
@@ -1030,9 +1070,8 @@ export class GameScene extends Scene {
       { x: w * 0.3, y: h * 0.85 },
     ];
 
-    for (let i = 0; i < erosionPoints.length; i++) {
-      if (i / erosionPoints.length >= intensity) break;
-
+    const maxPoints = Math.floor(intensity * erosionPoints.length);
+    for (let i = 0; i < maxPoints; i++) {
       const ep = erosionPoints[i];
       const pulse = Math.sin(this.time * 0.002 + i * 1.5) * 0.5 + 0.5;
       const r = (60 + intensity * 120) * (0.7 + pulse * 0.3);
@@ -1129,36 +1168,26 @@ export class GameScene extends Scene {
     const glitchBoost = this.glitchBurst ? 0.15 : 0;
 
     ctx.save();
-    for (const line of this.scanLines) {
-      const alpha = line.isGlitch ? baseAlpha * 3 + glitchBoost : baseAlpha + glitchBoost * 0.3;
-      if (alpha < 0.005) continue;
+    ctx.globalAlpha = baseAlpha + glitchBoost * 0.3;
 
-      const shift = line.isGlitch ? line.offset + (this.glitchBurst ? (Math.random() - 0.5) * 20 : 0) : 0;
+    if (this.depth >= 3) {
+      ctx.fillStyle = 'rgba(255, 107, 53, 1)';
+    } else {
+      ctx.fillStyle = 'rgba(10, 14, 26, 1)';
+    }
 
-      if (this.depth >= 3 && line.isGlitch) {
-        ctx.fillStyle = `rgba(255, 107, 53, ${alpha})`;
-        ctx.fillRect(shift, line.y, w, 2);
-        ctx.fillStyle = `rgba(0, 255, 212, ${alpha * 0.5})`;
-        ctx.fillRect(shift + 2, line.y + 1, w, 1);
-      } else {
-        ctx.fillStyle = `rgba(10, 14, 26, ${alpha})`;
-        ctx.fillRect(shift, line.y, w, line.thickness);
-      }
-
-      if (this.depth >= 2 && line.isGlitch && !this.glitchBurst) {
-        if (Math.random() < 0.002) {
-          ctx.fillStyle = `rgba(255, 255, 255, ${0.08 + Math.random() * 0.1})`;
-          ctx.fillRect(shift + Math.random() * w * 0.3, line.y, Math.random() * w * 0.4, 2);
-        }
-      }
+    for (let y = 0; y < h; y += 3) {
+      ctx.fillRect(0, y, w, 1);
     }
 
     if (this.glitchBurst) {
       const burstY = Math.random() * h;
       const burstH = 10 + Math.random() * 40;
-      ctx.fillStyle = `rgba(255, 107, 53, ${0.08 + Math.random() * 0.07})`;
+      ctx.globalAlpha = 0.08 + Math.random() * 0.07;
+      ctx.fillStyle = 'rgba(255, 107, 53, 1)';
       ctx.fillRect((Math.random() - 0.5) * 15, burstY, w, burstH);
-      ctx.fillStyle = `rgba(0, 255, 212, ${0.05})`;
+      ctx.globalAlpha = 0.05;
+      ctx.fillStyle = 'rgba(0, 255, 212, 1)';
       ctx.fillRect((Math.random() - 0.5) * 8, burstY + 2, w, burstH * 0.5);
     }
 

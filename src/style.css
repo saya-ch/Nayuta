@@ -18,10 +18,22 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
 }
 
 #game-canvas {
   display: block;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
+}
+
+#fps-display {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  color: rgba(107, 107, 141, 0.5);
+  pointer-events: none;
+  z-index: 10;
 }

@@ -40,16 +40,15 @@ export class PuzzleElement {
   _updateSwitch(playerX, playerY, puzzleManager) {
     const dx = playerX - this.x;
     const dy = playerY - this.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    this._playerNear = dist < 40;
+    this._playerNear = dx * dx + dy * dy < 1600;
   }
 
   _updatePressurePlate(playerX, playerY, puzzleManager) {
     const dx = playerX - this.x;
     const dy = playerY - this.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
+    const distSq = dx * dx + dy * dy;
     const wasActivated = this.activated;
-    this.activated = dist < 35;
+    this.activated = distSq < 1225;
 
     if (this.activated !== wasActivated) {
       this._notifyTargets(puzzleManager);

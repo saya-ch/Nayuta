@@ -183,6 +183,7 @@ export class MenuScene extends Scene {
     const parallaxX = (this.mouseX - 0.5) * 10;
     const parallaxY = (this.mouseY - 0.5) * 10;
 
+    ctx.fillStyle = 'rgba(232, 230, 240, 1)';
     for (const star of this.stars) {
       star.y -= star.speed * 16;
       if (star.y < -0.02) star.y += 1.04;
@@ -194,18 +195,28 @@ export class MenuScene extends Scene {
       const sx = star.x * w + px;
       const sy = star.y * h + py;
 
+      ctx.globalAlpha = alpha;
       ctx.beginPath();
       ctx.arc(sx, sy, star.size, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(232, 230, 240, ${alpha})`;
       ctx.fill();
-
-      if (star.size > 1.2 && star.brightness > 0.6) {
-        ctx.beginPath();
-        ctx.arc(sx, sy, star.size * 3, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(0, 255, 212, ${alpha * 0.1})`;
-        ctx.fill();
-      }
     }
+
+    ctx.fillStyle = 'rgba(0, 255, 212, 1)';
+    for (const star of this.stars) {
+      if (star.size <= 1.2 || star.brightness <= 0.6) continue;
+      const twinkle = 0.4 + 0.6 * Math.sin(this.time * 0.002 + star.phase);
+      const alpha = star.brightness * twinkle;
+      const px = parallaxX * star.depth;
+      const py = parallaxY * star.depth;
+      const sx = star.x * w + px;
+      const sy = star.y * h + py;
+
+      ctx.globalAlpha = alpha * 0.1;
+      ctx.beginPath();
+      ctx.arc(sx, sy, star.size * 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
   }
 
   _renderNebula(ctx, w, h) {
@@ -248,9 +259,11 @@ export class MenuScene extends Scene {
       const alpha = d.alpha * twinkle;
 
       if (d.hue === 'cyan') {
-        ctx.fillStyle = `rgba(0, 255, 212, ${alpha})`;
+        ctx.fillStyle = 'rgba(0, 255, 212, 1)';
+        ctx.globalAlpha = alpha;
       } else {
-        ctx.fillStyle = `rgba(232, 230, 240, ${alpha * 0.6})`;
+        ctx.fillStyle = 'rgba(232, 230, 240, 1)';
+        ctx.globalAlpha = alpha * 0.6;
       }
 
       ctx.beginPath();
@@ -258,12 +271,13 @@ export class MenuScene extends Scene {
       ctx.fill();
 
       if (d.size > 2 && d.hue === 'cyan') {
+        ctx.globalAlpha = alpha * 0.1;
         ctx.beginPath();
         ctx.arc(sx, sy, d.size * 4, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(0, 255, 212, ${alpha * 0.1})`;
         ctx.fill();
       }
     }
+    ctx.globalAlpha = 1;
   }
 
   _renderAbyssGlow(ctx, w, h) {

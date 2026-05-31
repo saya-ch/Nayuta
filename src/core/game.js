@@ -1,11 +1,14 @@
 export class Game {
   constructor(canvas) {
     this.canvas = canvas;
-    this.ctx = canvas.getContext('2d');
+    this.ctx = canvas.getContext('2d', { alpha: false });
     this.running = false;
     this.lastTime = 0;
     this.sceneManager = null;
     this.input = null;
+    this._fps = 0;
+    this._frameCount = 0;
+    this._fpsTime = 0;
   }
 
   init(sceneManager, inputManager) {
@@ -44,6 +47,14 @@ export class Game {
     const dt = Math.min(timestamp - this.lastTime, 50);
     this.lastTime = timestamp;
 
+    this._frameCount++;
+    this._fpsTime += dt;
+    if (this._fpsTime >= 1000) {
+      this._fps = this._frameCount;
+      this._frameCount = 0;
+      this._fpsTime -= 1000;
+    }
+
     this._update(dt);
     this._render();
 
@@ -62,5 +73,9 @@ export class Game {
     if (this.sceneManager) {
       this.sceneManager.render(this.ctx);
     }
+  }
+
+  getFPS() {
+    return this._fps;
   }
 }

@@ -33,3 +33,10 @@ document.addEventListener('keydown', initAudio);
 sceneManager.switchTo('menu');
 
 game.start();
+
+const fpsEl = document.getElementById('fps-display');
+if (fpsEl) {
+  setInterval(() => {
+    fpsEl.textContent = game.getFPS() + ' FPS';
+  }, 500);
+}

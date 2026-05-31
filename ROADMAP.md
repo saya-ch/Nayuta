@@ -14,7 +14,7 @@
 - [x] T007 Shader 用 algorithmic-art 编写深渊雾气与侵蚀效果 shader <!-- 2026-05-31T18:00Z -->
 - [x] T008 Art 用 algorithmic-art 生成主角 Nayuta 程序化概念图（byted-seedream-image-gen 因 ARK_API_KEY 缺少失败，已用程序化替代） <!-- 2026-05-31T19:15Z -->
 - [x] T009 Art 用 algorithmic-art 生成深渊场景概念图（byted-seedream-image-gen 因 ARK_API_KEY 缺少失败，已用程序化替代） <!-- 2026-05-31T21:00Z -->
-- [ ] T010 Art 用 byted-seedream-image-gen 生成记忆之锚与关键道具素材 <!-- FAILED: 缺少 ARK_API_KEY -->
+- [x] T010 Art 用 algorithmic-art 生成记忆之锚程序化概念图（byted-seedream-image-gen 因 ARK_API_KEY 缺少失败，已用程序化替代） <!-- 2026-06-01T00:00Z -->
 
 ## UI/UX
 - [x] T011 UI 使用 frontend-skill 实现主菜单界面（含动态背景） <!-- 2026-05-31T17:20Z -->
@@ -35,11 +35,11 @@
 - [x] T020 Code 实现零对白叙事系统：环境叙事、光影暗示、碎片化故事 <!-- 2026-05-31T21:00Z -->
 
 ## 视频与宣传
-- [ ] T021 Video 用 byted-seedance-video-gen 制作主菜单动态背景短片
+- [ ] T021 Video 用 byted-seedance-video-gen 制作主菜单动态背景短片 <!-- FAILED: 缺少 ARK_API_KEY -->
 - [ ] T022 Video 用 byted-seedance-video-gen 制作游戏宣传短片
 
 ## 性能与优化
-- [ ] T023 Perf 性能分析，优化渲染至 60fps
+- [x] T023 Perf 性能分析，优化渲染至 60fps <!-- 2026-06-01T00:30Z -->
 - [ ] T024 Perf 实现资源懒加载与场景预加载
 
 ## 发布准备

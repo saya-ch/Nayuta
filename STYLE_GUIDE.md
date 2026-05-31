@@ -64,7 +64,7 @@
 - 概念图-主角（v1）：assets/images/concept_nayuta_generator.html（程序化生成器，基础版）
 - 概念图-主角（v2）：assets/images/concept_nayuta_procedural.html（程序化生成器，精致版，含斗篷/冠冕/侵蚀效果）
 - 概念图-场景：assets/images/concept_abyss.html（程序化场景概念图生成器，含4层深渊深度切换）
-- 概念图-道具：assets/images/concept_anchor.png（待生成）
+- 概念图-道具：assets/images/concept_anchor.html（程序化记忆之锚概念图生成器，含轨道环/符文/侵蚀效果）
 - 情绪板：assets/images/moodboard.png（待生成）
 - 算法艺术-星尘：assets/shaders/abyssal-stardust.html
 - 算法艺术-侵蚀：assets/shaders/abyssal-erosion.html

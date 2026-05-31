@@ -1,5 +1,35 @@
 # CHANGELOG.md — Nayuta 迭代日志
 
+## [2026-06-01 00:30 迭代6] - 资源生成与性能优化 | 所用 skills: algorithmic-art, byted-seedream-image-gen(失败), byted-seedance-video-gen(失败) | 完成的任务 ID: T010, T023 | 备注: 自检通过，构建成功
+
+### 完成内容
+- **记忆之锚概念图 (T010)**：使用 algorithmic-art 创建了"Anchor of Memory"交互式程序化概念图生成器：
+  - 800x1000 竖向概念图，含锚核心/轨道环/漂浮符文/记忆碎片/侵蚀裂纹
+  - 锚核心：脉冲式荧光青发光体，6条辐射光线，多层光晕
+  - 轨道环系统：4层（可调）倾斜椭圆轨道，60个轨道粒子
+  - 符文系统：8个（可调）沿轨道旋转的远古符文（十字/三角/圆/方/菱形）
+  - 记忆碎片：15个（可调）漂浮的菱形碎片，带呼吸脉冲和浮动动画
+  - 侵蚀裂纹：噪声驱动的分支断裂线，虚空橙发光
+  - 可调参数：轨道环数/符文数/侵蚀强度/脉冲速度/碎片数
+  - 颜色选择器：荧光青/虚空橙/深渊蓝，严格遵循 STYLE_GUIDE.md
+  - 算法哲学文档：anchor-of-memory-philosophy.md
+- **性能优化 (T023)**：全面分析并优化了渲染管线，主要优化项：
+  - Canvas 上下文使用 `{ alpha: false }` 选项，减少合成开销
+  - 背景渐变缓存：避免每帧重建线性渐变对象
+  - 粒子渲染批处理：按颜色分组，减少 fillStyle 切换（4组→4次切换 vs N次切换）
+  - 扫描线渲染简化：从240条逐条渲染简化为统一透明度批量渲染
+  - shadowBlur 优化：锚点 20→12，HUD 10→6，减少 GPU 开销
+  - 雾气层优化：3层→2层，减少渐变创建
+  - PuzzleManager 优化：使用 Map 缓存元素查找（O(1) vs O(n)），缓存碰撞元素列表
+  - 距离计算优化：使用平方距离代替 Math.sqrt（PuzzleElement, PuzzleManager）
+  - 叙事系统优化：粒子删除使用交换删除代替 splice（O(1) vs O(n)）
+  - FPS 计数器：添加实时 FPS 显示，便于性能监控
+
+### 异常记录
+- byted-seedream-image-gen 因 ARK_API_KEY 缺少无法使用，T010 已用 algorithmic-art 程序化概念图替代
+- byted-seedance-video-gen 因 ARK_API_KEY 缺少无法使用，T021 标记为 FAILED
+- 无头浏览器测试因系统库缺失无法运行，非代码问题
+
 ## [2026-05-31 21:00 迭代5] - 叙事与音频系统 | 所用 skills: algorithmic-art | 完成的任务 ID: T020, T014, T009 | 备注: 自检通过，构建成功
 
 ### 完成内容

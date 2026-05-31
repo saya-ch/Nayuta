@@ -103,7 +103,8 @@ export class NarrativeSystem {
       flare.x += flare.vx * (dt / 1000);
       flare.y += flare.vy * (dt / 1000);
       if (flare.alpha <= 0) {
-        this.lightFlares.splice(i, 1);
+        this.lightFlares[i] = this.lightFlares[this.lightFlares.length - 1];
+        this.lightFlares.pop();
       }
     }
 
@@ -115,7 +116,8 @@ export class NarrativeSystem {
       wp.y += wp.vy * (dt / 1000);
       wp.vy -= 0.02;
       if (wp.alpha <= 0) {
-        this.whisperParticles.splice(i, 1);
+        this.whisperParticles[i] = this.whisperParticles[this.whisperParticles.length - 1];
+        this.whisperParticles.pop();
       }
     }
   }

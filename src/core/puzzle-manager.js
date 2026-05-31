@@ -3,6 +3,10 @@ import { PuzzleElement } from './puzzle-element.js';
 export class PuzzleManager {
   constructor() {
     this.elements = [];
+    this._elementMap = new Map();
+    this._collidableCache = [];
+    this._doorCache = [];
+    this._dirty = true;
     this.solved = false;
     this.onSolve = null;
   }
@@ -10,24 +14,46 @@ export class PuzzleManager {
   addElement(x, y, type, config = {}) {
     const element = new PuzzleElement(x, y, type, config);
     this.elements.push(element);
+    if (element.id) {
+      this._elementMap.set(element.id, element);
+    }
+    this._dirty = true;
     return element;
   }
 
   clear() {
     this.elements = [];
+    this._elementMap.clear();
+    this._collidableCache = [];
+    this._doorCache = [];
+    this._dirty = true;
     this.solved = false;
   }
 
   getElementById(id) {
-    return this.elements.find(e => e.id === id);
+    return this._elementMap.get(id) || null;
   }
 
   areAllSourcesActive(ids) {
     for (const id of ids) {
-      const el = this.getElementById(id);
+      const el = this._elementMap.get(id);
       if (!el || !el.activated) return false;
     }
     return true;
+  }
+
+  _rebuildCaches() {
+    this._collidableCache = [];
+    this._doorCache = [];
+    for (const el of this.elements) {
+      if (el.type === 'door') {
+        this._doorCache.push(el);
+        if (el.isSolid()) {
+          this._collidableCache.push(el);
+        }
+      }
+    }
+    this._dirty = false;
   }
 
   getMirrorAt(x, y) {
@@ -35,7 +61,7 @@ export class PuzzleManager {
       if (el.type === 'lightMirror') {
         const dx = x - el.x;
         const dy = y - el.y;
-        if (Math.sqrt(dx * dx + dy * dy) < 20) {
+        if (dx * dx + dy * dy < 400) {
           return el;
         }
       }
@@ -48,7 +74,7 @@ export class PuzzleManager {
       if (el.type === 'lightTarget') {
         const dx = x - el.x;
         const dy = y - el.y;
-        if (Math.sqrt(dx * dx + dy * dy) < 20) {
+        if (dx * dx + dy * dy < 400) {
           return el;
         }
       }
@@ -79,15 +105,17 @@ export class PuzzleManager {
       this.solved = true;
       if (this.onSolve) this.onSolve();
     }
+
+    this._dirty = true;
   }
 
   tryInteract(playerX, playerY) {
     for (const el of this.elements) {
       const dx = playerX - el.x;
       const dy = playerY - el.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
+      const distSq = dx * dx + dy * dy;
 
-      if (dist < 45 && (el.type === 'switch' || el.type === 'lightMirror')) {
+      if (distSq < 2025 && (el.type === 'switch' || el.type === 'lightMirror')) {
         el.interact(this);
         return true;
       }
@@ -102,10 +130,12 @@ export class PuzzleManager {
   }
 
   getDoors() {
-    return this.elements.filter(e => e.type === 'door');
+    if (this._dirty) this._rebuildCaches();
+    return this._doorCache;
   }
 
   getCollidableElements() {
-    return this.elements.filter(e => e.isSolid());
+    if (this._dirty) this._rebuildCaches();
+    return this._collidableCache;
   }
 }
