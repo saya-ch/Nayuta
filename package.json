@@ -2,6 +2,7 @@
   "name": "nayuta",
   "version": "0.1.0",
   "description": "Nayuta - A dark fairy tale cosmic horror exploration game",
+  "homepage": "https://saya-ch.github.io/Nayuta",
   "main": "src/main.js",
   "scripts": {
     "dev": "vite",

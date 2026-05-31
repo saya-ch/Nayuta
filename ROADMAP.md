@@ -43,5 +43,7 @@
 - [ ] T024 Perf 实现资源懒加载与场景预加载
 
 ## 发布准备
-- [ ] T025 Docs 编写 README 与操作说明
+- [x] T025 Docs 编写 README 与操作说明 <!-- 2026-05-31T18:06Z -->
 - [ ] T026 Docs 编写 itch.io/Steam 商店页面文案
+- [x] T027 Deploy 配置 GitHub Pages 自动部署 <!-- 2026-05-31T18:06Z -->
+- [x] T028 Deploy 配置 Vite 部署路径与构建参数 <!-- 2026-05-31T18:06Z -->

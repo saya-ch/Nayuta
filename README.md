@@ -2,6 +2,8 @@
 
 一个融合宇宙恐怖与暗黑童话的 2D 探索解谜游戏。
 
+🔗 **在线游玩：https://saya-ch.github.io/Nayuta**
+
 ## 世界观
 
 在时间的尽头，少女"那由他"从一场无始无终的梦中醒来，发现自己身处由破碎记忆构成的深渊——"忘却之海"。每一层深渊都是一段被遗忘的世界记忆：坍缩的星系、沉没的神殿、被吞噬的文明。她必须收集散落的"记忆之锚"，才能向下深入，接近深渊底部的真相。
@@ -23,6 +25,15 @@ npm install
 npm run dev     # 启动开发服务器
 npm run build   # 构建生产版本
 ```
+
+## 部署
+
+项目已配置 GitHub Pages 自动部署（通过 GitHub Actions）：
+
+- 每次推送到 `main` 分支时会自动构建并部署
+- 部署地址：https://saya-ch.github.io/Nayuta
+- 配置文件：[.github/workflows/deploy.yml](.github/workflows/deploy.yml)
+- Vite 部署路径配置：[vite.config.js](vite.config.js)
 
 ## 技术栈
 
