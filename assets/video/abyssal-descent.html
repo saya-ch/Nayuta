@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Abyssal Descent — 深渊坠落</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --anthropic-dark: #141413;
+            --anthropic-light: #faf9f5;
+            --anthropic-mid-gray: #b0aea5;
+            --anthropic-light-gray: #e8e6dc;
+            --anthropic-orange: #d97757;
+            --anthropic-blue: #6a9bcc;
+            --anthropic-green: #788c5d;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, var(--anthropic-light) 0%, #f5f3ee 100%);
+            min-height: 100vh;
+            color: var(--anthropic-dark);
+        }
+        .container { display: flex; min-height: 100vh; padding: 20px; gap: 20px; }
+        .sidebar {
+            width: 320px; flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 24px; border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(20, 20, 19, 0.1);
+            overflow-y: auto; overflow-x: hidden;
+        }
+        .sidebar h1 { font-family: 'Lora', serif; font-size: 24px; font-weight: 500; color: var(--anthropic-dark); margin-bottom: 8px; }
+        .sidebar .subtitle { color: var(--anthropic-mid-gray); font-size: 14px; margin-bottom: 32px; line-height: 1.4; }
+        .control-section { margin-bottom: 32px; }
+        .control-section h3 { font-size: 16px; font-weight: 600; color: var(--anthropic-dark); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .control-section h3::before { content: '•'; color: var(--anthropic-orange); font-weight: bold; }
+        .seed-input {
+            width: 100%; background: var(--anthropic-light); padding: 12px;
+            border-radius: 8px; font-family: 'Courier New', monospace; font-size: 14px;
+            margin-bottom: 12px; border: 1px solid var(--anthropic-light-gray); text-align: center;
+        }
+        .seed-input:focus { outline: none; border-color: var(--anthropic-orange); box-shadow: 0 0 0 2px rgba(217, 119, 87, 0.1); background: white; }
+        .seed-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+        .regen-button { margin-bottom: 0; }
+        .control-group { margin-bottom: 20px; }
+        .control-group label { display: block; font-size: 14px; font-weight: 500; color: var(--anthropic-dark); margin-bottom: 8px; }
+        .slider-container { display: flex; align-items: center; gap: 12px; }
+        .slider-container input[type="range"] { flex: 1; height: 4px; background: var(--anthropic-light-gray); border-radius: 2px; outline: none; -webkit-appearance: none; }
+        .slider-container input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; background: var(--anthropic-orange); border-radius: 50%; cursor: pointer; transition: all 0.2s ease; }
+        .slider-container input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.1); background: #c86641; }
+        .slider-container input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; background: var(--anthropic-orange); border-radius: 50%; border: none; cursor: pointer; }
+        .value-display { font-family: 'Courier New', monospace; font-size: 12px; color: var(--anthropic-mid-gray); min-width: 60px; text-align: right; }
+        .color-group { margin-bottom: 16px; }
+        .color-group label { display: block; font-size: 12px; color: var(--anthropic-mid-gray); margin-bottom: 4px; }
+        .color-picker-container { display: flex; align-items: center; gap: 8px; }
+        .color-picker-container input[type="color"] { width: 32px; height: 32px; border: none; border-radius: 6px; cursor: pointer; background: none; padding: 0; }
+        .color-value { font-family: 'Courier New', monospace; font-size: 12px; color: var(--anthropic-mid-gray); }
+        .button { background: var(--anthropic-orange); color: white; border: none; padding: 10px 16px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s ease; width: 100%; }
+        .button:hover { background: #c86641; transform: translateY(-1px); }
+        .button:active { transform: translateY(0); }
+        .button.secondary { background: var(--anthropic-blue); }
+        .button.secondary:hover { background: #5a8bb8; }
+        .button.tertiary { background: var(--anthropic-green); }
+        .button.tertiary:hover { background: #6b7b52; }
+        .button-row { display: flex; gap: 8px; }
+        .button-row .button { flex: 1; }
+        .canvas-area { flex: 1; display: flex; align-items: center; justify-content: center; min-width: 0; }
+        #canvas-container { width: 100%; max-width: 1000px; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 40px rgba(20, 20, 19, 0.1); background: #0A0E1A; }
+        #canvas-container canvas { display: block; width: 100% !important; height: auto !important; }
+        .loading { display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--anthropic-mid-gray); }
+        @media (max-width: 600px) { .container { flex-direction: column; } .sidebar { width: 100%; } .canvas-area { padding: 20px; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h1>Abyssal Descent</h1>
+            <div class="subtitle">深渊坠落 — 主菜单动态背景生成器</div>
+
+            <div class="control-section">
+                <h3>Seed</h3>
+                <input type="number" id="seed-input" class="seed-input" value="42" onchange="updateSeed()">
+                <div class="seed-controls">
+                    <button class="button secondary" onclick="previousSeed()">← Prev</button>
+                    <button class="button secondary" onclick="nextSeed()">Next →</button>
+                </div>
+                <button class="button tertiary regen-button" onclick="randomSeedAndUpdate()">↻ Random</button>
+            </div>
+
+            <div class="control-section">
+                <h3>Parameters</h3>
+                <div class="control-group">
+                    <label>Particle Count</label>
+                    <div class="slider-container">
+                        <input type="range" id="particleCount" min="200" max="2000" step="100" value="800" oninput="updateParam('particleCount', this.value)">
+                        <span class="value-display" id="particleCount-value">800</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Gravity Strength</label>
+                    <div class="slider-container">
+                        <input type="range" id="gravityStrength" min="0.1" max="3.0" step="0.1" value="1.0" oninput="updateParam('gravityStrength', this.value)">
+                        <span class="value-display" id="gravityStrength-value">1.0</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Angular Momentum</label>
+                    <div class="slider-container">
+                        <input type="range" id="angularMomentum" min="0.0" max="2.0" step="0.1" value="0.6" oninput="updateParam('angularMomentum', this.value)">
+                        <span class="value-display" id="angularMomentum-value">0.6</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Breath Speed</label>
+                    <div class="slider-container">
+                        <input type="range" id="breathSpeed" min="0.2" max="2.0" step="0.1" value="0.6" oninput="updateParam('breathSpeed', this.value)">
+                        <span class="value-display" id="breathSpeed-value">0.6</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Memory Fragments</label>
+                    <div class="slider-container">
+                        <input type="range" id="fragmentCount" min="0" max="20" step="1" value="8" oninput="updateParam('fragmentCount', this.value)">
+                        <span class="value-display" id="fragmentCount-value">8</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Erosion Intensity</label>
+                    <div class="slider-container">
+                        <input type="range" id="erosionIntensity" min="0.0" max="1.0" step="0.05" value="0.3" oninput="updateParam('erosionIntensity', this.value)">
+                        <span class="value-display" id="erosionIntensity-value">0.3</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Colors</h3>
+                <div class="color-group">
+                    <label>Abyss Base</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color1" value="#0A0E1A" onchange="updateColor('color1', this.value)">
+                        <span class="color-value" id="color1-value">#0A0E1A</span>
+                    </div>
+                </div>
+                <div class="color-group">
+                    <label>Fluorescent Cyan</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color2" value="#00FFD4" onchange="updateColor('color2', this.value)">
+                        <span class="color-value" id="color2-value">#00FFD4</span>
+                    </div>
+                </div>
+                <div class="color-group">
+                    <label>Void Orange</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color3" value="#FF6B35" onchange="updateColor('color3', this.value)">
+                        <span class="color-value" id="color3-value">#FF6B35</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Actions</h3>
+                <div class="button-row">
+                    <button class="button" onclick="resetParameters()">Reset</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="canvas-area">
+            <div id="canvas-container">
+                <div class="loading">Initializing abyssal descent...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let params = {
+            seed: 42,
+            particleCount: 800,
+            gravityStrength: 1.0,
+            angularMomentum: 0.6,
+            breathSpeed: 0.6,
+            fragmentCount: 8,
+            erosionIntensity: 0.3,
+            colorPalette: ['#0A0E1A', '#00FFD4', '#FF6B35']
+        };
+
+        let defaultParams = JSON.parse(JSON.stringify(params));
+
+        let particles = [];
+        let fragments = [];
+        let breathPhase = 0;
+        let erosionPulseTimer = 0;
+        let erosionPulseActive = false;
+        let erosionPulseRadius = 0;
+        let time = 0;
+
+        function hexToRgb(hex) {
+            let r = parseInt(hex.slice(1, 3), 16);
+            let g = parseInt(hex.slice(3, 5), 16);
+            let b = parseInt(hex.slice(5, 7), 16);
+            return { r, g, b };
+        }
+
+        function setup() {
+            let canvas = createCanvas(1280, 720);
+            canvas.parent('canvas-container');
+            initializeSystem();
+            document.querySelector('.loading').style.display = 'none';
+        }
+
+        function initializeSystem() {
+            randomSeed(params.seed);
+            noiseSeed(params.seed);
+
+            particles = [];
+            for (let i = 0; i < params.particleCount; i++) {
+                particles.push(new AbyssParticle());
+            }
+
+            fragments = [];
+            for (let i = 0; i < params.fragmentCount; i++) {
+                fragments.push(new MemoryFragment(i));
+            }
+
+            breathPhase = 0;
+            erosionPulseTimer = 0;
+            erosionPulseActive = false;
+            erosionPulseRadius = 0;
+            time = 0;
+        }
+
+        function draw() {
+            let dt = deltaTime / 1000;
+            dt = Math.min(dt, 0.05);
+            time += dt;
+
+            let breathCycle = Math.sin(breathPhase) * 0.5 + 0.5;
+            let noiseBreath = noise(time * 0.3) * 0.4 + 0.6;
+            let effectiveBreath = breathCycle * noiseBreath;
+
+            background(10, 14, 26);
+
+            renderDepthGradient();
+            renderNebula(effectiveBreath);
+            renderAbyssEye(effectiveBreath);
+
+            for (let p of particles) {
+                p.update(dt, effectiveBreath);
+                p.render();
+            }
+
+            for (let f of fragments) {
+                f.update(dt, effectiveBreath);
+                f.render();
+            }
+
+            renderErosionPulse(dt);
+            renderVignette();
+            renderScanLines();
+
+            breathPhase += dt * params.breathSpeed * Math.PI * 0.5;
+
+            erosionPulseTimer += dt;
+            if (erosionPulseTimer > 6 + random() * 4) {
+                erosionPulseActive = true;
+                erosionPulseRadius = 0;
+                erosionPulseTimer = 0;
+            }
+        }
+
+        function renderDepthGradient() {
+            noStroke();
+            for (let y = 0; y < height; y += 4) {
+                let t = y / height;
+                let r = lerp(10, 26, t * 0.3);
+                let g = lerp(14, 16, t * 0.2);
+                let b = lerp(26, 53, t * 0.5);
+                fill(r, g, b, 60);
+                rect(0, y, width, 4);
+            }
+        }
+
+        function renderNebula(breath) {
+            let cx1 = width * 0.5;
+            let cy1 = height * 0.25;
+            let cx2 = width * 0.65;
+            let cy2 = height * 0.5;
+            let cx3 = width * 0.3;
+            let cy3 = height * 0.7;
+
+            noStroke();
+            for (let i = 3; i > 0; i--) {
+                let alpha = (0.02 + breath * 0.01) * i;
+                fill(26, 16, 53, alpha * 255);
+                ellipse(cx1 + sin(time * 0.2) * 20, cy1, width * 0.3 * i, height * 0.3 * i);
+            }
+
+            let cyanRgb = hexToRgb(params.colorPalette[1]);
+            for (let i = 2; i > 0; i--) {
+                let alpha = (0.01 + breath * 0.008) * i;
+                fill(cyanRgb.r, cyanRgb.g, cyanRgb.b, alpha * 255);
+                ellipse(cx2 - sin(time * 0.15) * 15, cy2, width * 0.15 * i, height * 0.15 * i);
+            }
+
+            let orangeRgb = hexToRgb(params.colorPalette[2]);
+            for (let i = 2; i > 0; i--) {
+                let alpha = (0.008 + breath * 0.005) * i;
+                fill(orangeRgb.r, orangeRgb.g, orangeRgb.b, alpha * 255);
+                ellipse(cx3 + cos(time * 0.1) * 10, cy3, width * 0.12 * i, height * 0.12 * i);
+            }
+        }
+
+        function renderAbyssEye(breath) {
+            let cx = width * 0.5;
+            let cy = height * 0.85;
+            let baseR = 60 + breath * 30;
+            let pulseR = baseR + sin(time * 2) * 10;
+
+            let cyanRgb = hexToRgb(params.colorPalette[1]);
+            noStroke();
+            for (let i = 5; i > 0; i--) {
+                let r = pulseR * i * 0.8;
+                let alpha = (0.015 + breath * 0.01) / i;
+                fill(cyanRgb.r, cyanRgb.g, cyanRgb.b, alpha * 255);
+                ellipse(cx, cy, r * 2, r * 2);
+            }
+
+            fill(cyanRgb.r, cyanRgb.g, cyanRgb.b, 30 + breath * 20);
+            ellipse(cx, cy, 8 + breath * 4, 8 + breath * 4);
+        }
+
+        function renderErosionPulse(dt) {
+            if (!erosionPulseActive) return;
+
+            erosionPulseRadius += dt * 300;
+            let maxR = Math.sqrt(width * width + height * height);
+            let progress = erosionPulseRadius / maxR;
+
+            if (progress > 1) {
+                erosionPulseActive = false;
+                return;
+            }
+
+            let alpha = (1 - progress) * 0.08 * params.erosionIntensity;
+            let orangeRgb = hexToRgb(params.colorPalette[2]);
+            noFill();
+            stroke(orangeRgb.r, orangeRgb.g, orangeRgb.b, alpha * 255);
+            strokeWeight(2 + (1 - progress) * 3);
+            ellipse(width * 0.5, height * 0.85, erosionPulseRadius * 2, erosionPulseRadius * 2);
+
+            let cyanRgb = hexToRgb(params.colorPalette[1]);
+            stroke(cyanRgb.r, cyanRgb.g, cyanRgb.b, alpha * 0.5 * 255);
+            strokeWeight(1);
+            ellipse(width * 0.5, height * 0.85, erosionPulseRadius * 1.8, erosionPulseRadius * 1.8);
+            noStroke();
+        }
+
+        function renderVignette() {
+            noStroke();
+            let cx = width * 0.5;
+            let cy = height * 0.5;
+            let maxR = Math.sqrt(cx * cx + cy * cy);
+            for (let i = 0; i < 8; i++) {
+                let t = 0.7 + i * 0.04;
+                let r = maxR * t;
+                fill(10, 14, 26, 15);
+                ellipse(cx, cy, r * 2, r * 2);
+            }
+        }
+
+        function renderScanLines() {
+            if (params.erosionIntensity < 0.1) return;
+            noStroke();
+            fill(10, 14, 26, params.erosionIntensity * 12);
+            for (let y = 0; y < height; y += 3) {
+                rect(0, y, width, 1);
+            }
+        }
+
+        class AbyssParticle {
+            constructor() {
+                this.reset();
+                this.memoryDepth = random();
+            }
+
+            reset() {
+                this.x = random(width);
+                this.y = random(-50, height * 0.3);
+                this.vx = 0;
+                this.vy = 0;
+                this.size = random(1, 3.5);
+                this.alpha = random(0.1, 0.5);
+                this.memoryDepth = random();
+                this.life = 0;
+                this.maxLife = random(300, 800);
+            }
+
+            update(dt, breath) {
+                this.life++;
+                let cx = width * 0.5;
+                let cy = height * 0.85;
+                let dx = cx - this.x;
+                let dy = cy - this.y;
+                let dist = Math.sqrt(dx * dx + dy * dy) + 1;
+
+                let grav = params.gravityStrength * 50 / dist;
+                grav *= (0.8 + breath * 0.4);
+
+                let nx = dx / dist;
+                let ny = dy / dist;
+
+                let ang = params.angularMomentum;
+                let tx = -ny * ang;
+                let ty = nx * ang;
+
+                let noiseVal = noise(this.x * 0.003, this.y * 0.003, time * 0.2);
+                let noiseForce = (noiseVal - 0.5) * 30;
+
+                this.vx += (nx * grav + tx * grav * 0.5 + noiseForce * 0.3) * dt;
+                this.vy += (ny * grav + ty * grav * 0.3 + noiseForce * 0.2) * dt;
+
+                this.vx *= 0.98;
+                this.vy *= 0.98;
+
+                this.x += this.vx * dt;
+                this.y += this.vy * dt;
+
+                if (this.y > height + 20 || this.x < -50 || this.x > width + 50 || this.life > this.maxLife) {
+                    this.reset();
+                }
+
+                if (dist < 30) {
+                    this.reset();
+                }
+            }
+
+            render() {
+                let cyanRgb = hexToRgb(params.colorPalette[1]);
+                let orangeRgb = hexToRgb(params.colorPalette[2]);
+
+                let r, g, b;
+                if (this.memoryDepth < 0.5) {
+                    let t = this.memoryDepth * 2;
+                    r = lerp(cyanRgb.r, 138, t);
+                    g = lerp(cyanRgb.g, 43, t);
+                    b = lerp(cyanRgb.b, 226, t);
+                } else {
+                    let t = (this.memoryDepth - 0.5) * 2;
+                    r = lerp(138, orangeRgb.r, t);
+                    g = lerp(43, orangeRgb.g, t);
+                    b = lerp(226, orangeRgb.b, t);
+                }
+
+                let lifeFade = Math.min(1, this.life / 60) * Math.min(1, (this.maxLife - this.life) / 60);
+                let a = this.alpha * lifeFade;
+
+                noStroke();
+                fill(r, g, b, a * 255);
+                ellipse(this.x, this.y, this.size, this.size);
+
+                if (this.size > 2 && a > 0.2) {
+                    fill(r, g, b, a * 0.1 * 255);
+                    ellipse(this.x, this.y, this.size * 4, this.size * 4);
+                }
+            }
+        }
+
+        class MemoryFragment {
+            constructor(index) {
+                this.index = index;
+                randomSeed(params.seed + index * 137);
+                this.angle = random(TWO_PI);
+                this.orbitRadius = random(80, 300);
+                this.orbitSpeed = random(0.1, 0.3) * (random() > 0.5 ? 1 : -1);
+                this.size = random(6, 14);
+                this.shape = floor(random(3));
+                this.pulse = random(TWO_PI);
+                this.rotationSpeed = random(0.5, 2);
+                this.rotation = random(TWO_PI);
+                this.cx = width * 0.5;
+                this.cy = height * 0.85;
+                randomSeed(params.seed);
+            }
+
+            update(dt, breath) {
+                this.angle += this.orbitSpeed * dt;
+                this.pulse += dt * 2;
+                this.rotation += this.rotationSpeed * dt;
+
+                this.x = this.cx + Math.cos(this.angle) * this.orbitRadius;
+                this.y = this.cy + Math.sin(this.angle) * this.orbitRadius * 0.4;
+            }
+
+            render() {
+                let breathPulse = Math.sin(this.pulse) * 0.3 + 0.7;
+                let cyanRgb = hexToRgb(params.colorPalette[1]);
+
+                push();
+                translate(this.x, this.y);
+                rotate(this.rotation);
+
+                noStroke();
+                fill(cyanRgb.r, cyanRgb.g, cyanRgb.b, 0.04 * breathPulse * 255);
+                ellipse(0, 0, this.size * 6, this.size * 6);
+
+                stroke(cyanRgb.r, cyanRgb.g, cyanRgb.b, 0.3 * breathPulse * 255);
+                strokeWeight(1);
+                noFill();
+
+                beginShape();
+                if (this.shape === 0) {
+                    for (let i = 0; i < 4; i++) {
+                        let a = (i / 4) * TWO_PI - HALF_PI;
+                        let r = this.size;
+                        vertex(Math.cos(a) * r, Math.sin(a) * r);
+                    }
+                } else if (this.shape === 1) {
+                    for (let i = 0; i < 3; i++) {
+                        let a = (i / 3) * TWO_PI - HALF_PI;
+                        let r = this.size;
+                        vertex(Math.cos(a) * r, Math.sin(a) * r);
+                    }
+                } else {
+                    for (let i = 0; i < 6; i++) {
+                        let a = (i / 6) * TWO_PI;
+                        let r = this.size;
+                        vertex(Math.cos(a) * r, Math.sin(a) * r);
+                    }
+                }
+                endShape(CLOSE);
+
+                fill(cyanRgb.r, cyanRgb.g, cyanRgb.b, 0.15 * breathPulse * 255);
+                noStroke();
+                beginShape();
+                if (this.shape === 0) {
+                    for (let i = 0; i < 4; i++) {
+                        let a = (i / 4) * TWO_PI - HALF_PI;
+                        vertex(Math.cos(a) * this.size, Math.sin(a) * this.size);
+                    }
+                } else if (this.shape === 1) {
+                    for (let i = 0; i < 3; i++) {
+                        let a = (i / 3) * TWO_PI - HALF_PI;
+                        vertex(Math.cos(a) * this.size, Math.sin(a) * this.size);
+                    }
+                } else {
+                    for (let i = 0; i < 6; i++) {
+                        let a = (i / 6) * TWO_PI;
+                        vertex(Math.cos(a) * this.size, Math.sin(a) * this.size);
+                    }
+                }
+                endShape(CLOSE);
+
+                pop();
+            }
+        }
+
+        function updateParam(paramName, value) {
+            let numVal = parseFloat(value);
+            params[paramName] = numVal;
+            document.getElementById(paramName + '-value').textContent = numVal;
+
+            if (paramName === 'particleCount') {
+                let diff = numVal - particles.length;
+                if (diff > 0) {
+                    for (let i = 0; i < diff; i++) particles.push(new AbyssParticle());
+                } else if (diff < 0) {
+                    particles.splice(0, -diff);
+                }
+            }
+            if (paramName === 'fragmentCount') {
+                fragments = [];
+                for (let i = 0; i < numVal; i++) {
+                    fragments.push(new MemoryFragment(i));
+                }
+            }
+        }
+
+        function updateColor(colorId, value) {
+            let idx = parseInt(colorId.replace('color', '')) - 1;
+            params.colorPalette[idx] = value;
+            document.getElementById(colorId + '-value').textContent = value;
+        }
+
+        function updateSeedDisplay() {
+            document.getElementById('seed-input').value = params.seed;
+        }
+
+        function updateSeed() {
+            let input = document.getElementById('seed-input');
+            let newSeed = parseInt(input.value);
+            if (newSeed && newSeed > 0) {
+                params.seed = newSeed;
+                initializeSystem();
+            } else {
+                updateSeedDisplay();
+            }
+        }
+
+        function previousSeed() {
+            params.seed = Math.max(1, params.seed - 1);
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function nextSeed() {
+            params.seed = params.seed + 1;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function randomSeedAndUpdate() {
+            params.seed = Math.floor(Math.random() * 999999) + 1;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function resetParameters() {
+            params = JSON.parse(JSON.stringify(defaultParams));
+
+            document.getElementById('particleCount').value = params.particleCount;
+            document.getElementById('particleCount-value').textContent = params.particleCount;
+            document.getElementById('gravityStrength').value = params.gravityStrength;
+            document.getElementById('gravityStrength-value').textContent = params.gravityStrength;
+            document.getElementById('angularMomentum').value = params.angularMomentum;
+            document.getElementById('angularMomentum-value').textContent = params.angularMomentum;
+            document.getElementById('breathSpeed').value = params.breathSpeed;
+            document.getElementById('breathSpeed-value').textContent = params.breathSpeed;
+            document.getElementById('fragmentCount').value = params.fragmentCount;
+            document.getElementById('fragmentCount-value').textContent = params.fragmentCount;
+            document.getElementById('erosionIntensity').value = params.erosionIntensity;
+            document.getElementById('erosionIntensity-value').textContent = params.erosionIntensity;
+
+            document.getElementById('color1').value = params.colorPalette[0];
+            document.getElementById('color1-value').textContent = params.colorPalette[0];
+            document.getElementById('color2').value = params.colorPalette[1];
+            document.getElementById('color2-value').textContent = params.colorPalette[1];
+            document.getElementById('color3').value = params.colorPalette[2];
+            document.getElementById('color3-value').textContent = params.colorPalette[2];
+
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        window.addEventListener('load', function() {
+            updateSeedDisplay();
+        });
+    </script>
+</body>
+</html>

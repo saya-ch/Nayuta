@@ -9,6 +9,7 @@ export class SceneManager {
     this.transitionDuration = 500;
     this.transitionElapsed = 0;
     this.pendingScene = null;
+    this._preloadedScenes = new Set();
   }
 
   register(name, scene) {
@@ -25,6 +26,15 @@ export class SceneManager {
     this.transitioning = true;
     this.transitionAlpha = 0;
     this.transitionElapsed = 0;
+  }
+
+  preloadScene(name) {
+    const scene = this.scenes.get(name);
+    if (!scene || this._preloadedScenes.has(name)) return;
+    if (!scene.initialized) {
+      scene.init();
+    }
+    this._preloadedScenes.add(name);
   }
 
   update(dt) {

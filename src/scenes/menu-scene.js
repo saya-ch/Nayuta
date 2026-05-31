@@ -147,6 +147,7 @@ export class MenuScene extends Scene {
   _selectItem() {
     switch (this.selectedIndex) {
       case 0:
+        this.sceneManager.preloadScene('game');
         this.sceneManager.switchTo('game');
         break;
     }

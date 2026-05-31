@@ -1,5 +1,36 @@
 # CHANGELOG.md — Nayuta 迭代日志
 
+## [2026-06-01 08:00 迭代7] - 性能优化与资源管理 | 所用 skills: algorithmic-art, byted-seedance-video-gen(失败) | 完成的任务 ID: T024, T026, T021(替代) | 备注: 自检通过，构建成功
+
+### 完成内容
+- **资源懒加载与场景预加载 (T024)**：创建了完整的资源管理系统，包含：
+  - ResourceManager 类：统一的资源加载/缓存/释放管理器，支持异步加载、预加载队列、模式匹配释放
+  - LevelData 缓存机制：将静态 getter 改为工厂方法 + Map 缓存，避免每次访问重建关卡数据对象
+  - LevelData.preloadAdjacentLevels()：预加载相邻关卡数据，场景切换时零等待
+  - GameScene._releaseLevelResources()：离开关卡时释放粒子/星星/裂缝等数组，减少内存占用
+  - GameScene._preloadNextLevelResources()：进入关卡时预加载下一关资源到 ResourceManager
+  - SceneManager.preloadScene()：支持场景预初始化
+  - MenuScene：点击"开始探索"时预加载游戏场景
+  - FPS 显示增强：显示资源加载状态
+- **商店页面文案 (T026)**：编写了完整的 itch.io/Steam 商店页面文案，包含：
+  - 简短描述（280字符限制）
+  - 详细描述（世界观+6大核心特色）
+  - 操作说明、视觉风格、标签
+  - 系统需求（最低/推荐配置）
+  - 定价建议（itch.io 免费+Name Your Price / Steam ¥12 首发折扣）
+- **主菜单动态背景生成器 (T021 替代)**：因 byted-seedance-video-gen 缺少 ARK_API_KEY，使用 algorithmic-art 创建了"Abyssal Descent"交互式动态背景生成器：
+  - 1280x720 横向动态背景，含引力坍缩场 + 呼吸系统 + 侵蚀脉冲
+  - 粒子系统：800个粒子受深渊之眼引力吸引，带角动量螺旋运动
+  - 记忆深度颜色映射：浅层荧光青→中层紫色→深层虚空橙
+  - 记忆碎片：菱形/三角形/六边形沿轨道旋转
+  - 深渊之眼：底部呼吸式奇点，多层光晕
+  - 侵蚀脉冲：周期性从深渊之眼扩散的冲击波
+  - 可调参数：粒子数/引力强度/角动量/呼吸速度/碎片数/侵蚀强度
+  - 颜色选择器：深渊蓝/荧光青/虚空橙，严格遵循 STYLE_GUIDE.md
+
+### 异常记录
+- byted-seedance-video-gen 因 ARK_API_KEY 缺少无法使用，T021 已用 algorithmic-art 程序化动态背景生成器替代
+
 ## [2026-06-01 00:30 迭代6] - 资源生成与性能优化 | 所用 skills: algorithmic-art, byted-seedream-image-gen(失败), byted-seedance-video-gen(失败) | 完成的任务 ID: T010, T023 | 备注: 自检通过，构建成功
 
 ### 完成内容

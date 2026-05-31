@@ -1,15 +1,36 @@
 export class LevelData {
+  static _cache = new Map();
+
   static getLevel(levelIndex) {
+    if (this._cache.has(levelIndex)) {
+      return this._cache.get(levelIndex);
+    }
+
+    let level;
     switch (levelIndex) {
-      case 0: return LevelData.LEVEL_1;
-      case 1: return LevelData.LEVEL_2;
-      case 2: return LevelData.LEVEL_3;
-      case 3: return LevelData.LEVEL_4;
-      default: return LevelData.LEVEL_1;
+      case 0: level = this._createLevel1(); break;
+      case 1: level = this._createLevel2(); break;
+      case 2: level = this._createLevel3(); break;
+      case 3: level = this._createLevel4(); break;
+      default: level = this._createLevel1(); break;
+    }
+
+    this._cache.set(levelIndex, level);
+    return level;
+  }
+
+  static preloadAdjacentLevels(currentIndex) {
+    const indices = [currentIndex - 1, currentIndex + 1].filter(i => i >= 0 && i < 4);
+    for (const i of indices) {
+      this.getLevel(i);
     }
   }
 
-  static get LEVEL_1() {
+  static clearCache() {
+    this._cache.clear();
+  }
+
+  static _createLevel1() {
     return {
       name: '浅层记忆',
       subtitle: '蓝色童话',
@@ -110,7 +131,7 @@ export class LevelData {
     };
   }
 
-  static get LEVEL_2() {
+  static _createLevel2() {
     return {
       name: '中层记忆',
       subtitle: '紫色神秘',
@@ -206,7 +227,7 @@ export class LevelData {
     };
   }
 
-  static get LEVEL_3() {
+  static _createLevel3() {
     return {
       name: '深层记忆',
       subtitle: '红色压迫',
@@ -305,7 +326,7 @@ export class LevelData {
     };
   }
 
-  static get LEVEL_4() {
+  static _createLevel4() {
     return {
       name: '最深层',
       subtitle: '纯黑宇宙恐怖',

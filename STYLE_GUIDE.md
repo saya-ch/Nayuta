@@ -69,6 +69,7 @@
 - 算法艺术-星尘：assets/shaders/abyssal-stardust.html
 - 算法艺术-侵蚀：assets/shaders/abyssal-erosion.html
 - 算法艺术-现实侵蚀：assets/shaders/reality-erosion.html
+- 动态背景生成器：assets/video/abyssal-descent.html
 
 ## Shader 风格参考
 - 星空粒子：缓慢飘散的星尘，有深度视差

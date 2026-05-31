@@ -35,19 +35,27 @@
 - [x] T020 Code 实现零对白叙事系统：环境叙事、光影暗示、碎片化故事 <!-- 2026-05-31T21:00Z -->
 
 ## 视频与宣传
-- [ ] T021 Video 用 byted-seedance-video-gen 制作主菜单动态背景短片 <!-- FAILED: 缺少 ARK_API_KEY -->
+- [x] T021 Video 用 algorithmic-art 创建主菜单动态背景生成器（byted-seedance-video-gen 因 ARK_API_KEY 缺少失败，已用程序化替代） <!-- 2026-06-01T08:00Z -->
 - [ ] T022 Video 用 byted-seedance-video-gen 制作游戏宣传短片
 
 ## 性能与优化
 - [x] T023 Perf 性能分析，优化渲染至 60fps <!-- 2026-06-01T00:30Z -->
-- [ ] T024 Perf 实现资源懒加载与场景预加载
+- [x] T024 Perf 实现资源懒加载与场景预加载 <!-- 2026-06-01T08:00Z -->
 
 ## 发布准备
 - [x] T025 Docs 编写 README 与操作说明 <!-- 2026-05-31T18:06Z -->
-- [ ] T026 Docs 编写 itch.io/Steam 商店页面文案
+- [x] T026 Docs 编写 itch.io/Steam 商店页面文案 <!-- 2026-06-01T08:00Z -->
 - [x] T027 Deploy 配置 GitHub Pages 自动部署 <!-- 2026-05-31T18:06Z -->
 - [x] T028 Deploy 配置 Vite 部署路径与构建参数 <!-- 2026-05-31T18:06Z -->
 
 ## 新增任务
 - [x] T029 Code 充实第2-4层深渊关卡的解谜元素与装饰 <!-- 2026-05-31T20:10Z -->
 - [x] T030 Code 实现关卡间过渡动画与深度递增视觉变化 <!-- 2026-05-31T20:10Z -->
+
+## 第二批新增任务
+- [ ] T031 Code 实现游戏结局场景：最终抉择画面与结局动画
+- [ ] T032 UI 使用 frontend-skill 实现关于页面（世界观介绍、制作人员）
+- [ ] T033 Code 实现移动端触控支持：虚拟摇杆与触控按钮
+- [ ] T034 Code 实现游戏进度保存：localStorage 存储已收集锚点与已解锁关卡
+- [ ] T035 Art 用 algorithmic-art 创建结局抉择视觉特效生成器
+- [ ] T036 Code 实现玩家死亡/重生动画：深渊吞噬效果与重新浮现

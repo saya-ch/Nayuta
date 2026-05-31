@@ -2,6 +2,7 @@ import { Game } from './core/game.js';
 import { SceneManager } from './core/scene-manager.js';
 import { InputManager } from './core/input.js';
 import { audioSystem } from './core/audio-system.js';
+import { resourceManager } from './core/resource-manager.js';
 import { MenuScene } from './scenes/menu-scene.js';
 import { GameScene } from './scenes/game-scene.js';
 import { PauseScene } from './scenes/pause-scene.js';
@@ -37,6 +38,7 @@ game.start();
 const fpsEl = document.getElementById('fps-display');
 if (fpsEl) {
   setInterval(() => {
-    fpsEl.textContent = game.getFPS() + ' FPS';
+    const rmInfo = resourceManager.isReady() ? '' : ` [Loading: ${resourceManager.getLoadingCount()}]`;
+    fpsEl.textContent = game.getFPS() + ' FPS' + rmInfo;
   }, 500);
 }

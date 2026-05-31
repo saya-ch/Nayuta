@@ -3,6 +3,7 @@ import { COLORS, DEPTH_COLORS } from '../constants.js';
 import { PuzzleManager } from '../core/puzzle-manager.js';
 import { LevelData } from '../core/level-data.js';
 import { NarrativeSystem } from '../core/narrative-system.js';
+import { resourceManager } from '../core/resource-manager.js';
 
 export class GameScene extends Scene {
   constructor(input, sceneManager, audioSystem) {
@@ -63,10 +64,22 @@ export class GameScene extends Scene {
       this.audio.playBGM(this.depth);
       this.audio.playAmbient(this.depth);
     }
+    LevelData.preloadAdjacentLevels(this.depth);
+    this._preloadNextLevelResources();
+  }
+
+  _preloadNextLevelResources() {
+    const nextDepth = this.depth + 1;
+    if (nextDepth < 4) {
+      const nextLevel = LevelData.getLevel(nextDepth);
+      resourceManager.set(`level_${nextDepth}_data`, nextLevel);
+    }
   }
 
   _loadLevel(depthIndex) {
-    const level = LevelData.getLevel(depthIndex);
+    this._releaseLevelResources();
+
+    const level = resourceManager.get(`level_${depthIndex}_data`) || LevelData.getLevel(depthIndex);
     this.currentLevel = level;
     this.platforms = level.platforms;
     this.decorations = level.decorations || [];
@@ -124,6 +137,18 @@ export class GameScene extends Scene {
     this.realityCracks = [];
     this._initScanLines();
     this._initRealityCracks();
+  }
+
+  _releaseLevelResources() {
+    if (this.depth > 0) {
+      resourceManager.releasePattern(`level_${this.depth - 1}_`);
+    }
+    this.particles = [];
+    this.levelStars = [];
+    this.playerTrail = [];
+    this.fallStreaks = [];
+    this.realityCracks = [];
+    this.scanLines = [];
   }
 
   _generateParticles(level) {
