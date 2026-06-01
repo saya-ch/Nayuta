@@ -93,6 +93,8 @@ export class GameScene extends Scene {
     this.weatherVortices = [];
     this.weatherLightning = [];
     this.weatherTime = 0;
+    this.riftFragments = [];
+    this.riftEyes = [];
   }
 
   init() {
@@ -184,6 +186,7 @@ export class GameScene extends Scene {
     this.hazardTime = 0;
 
     this._initWeather(level);
+    this._initRiftEffects(level);
 
     this.player.x = level.playerStart.x;
     this.player.y = level.playerStart.y;
@@ -951,6 +954,7 @@ export class GameScene extends Scene {
     this._renderColorShift(ctx, w, h);
     this._renderScanLines(ctx, w, h);
     this._renderRealityCracks(ctx, w, h);
+    this._renderRiftEnhancement(ctx, w, h);
     this._renderDepthEffects(ctx, w, h);
     this.narrativeSystem.renderLightFlares(ctx);
     this.narrativeSystem.renderWhisperParticles(ctx);
@@ -3015,5 +3019,170 @@ export class GameScene extends Scene {
     ctx.stroke();
 
     ctx.restore();
+  }
+
+  _initRiftEffects(level) {
+    this.riftFragments = [];
+    this.riftEyes = [];
+
+    if (this.depth < 2) return;
+
+    const fragmentCount = 5 + this.depth * 4;
+    for (let i = 0; i < fragmentCount; i++) {
+      const shapes = ['hexagon', 'triangle', 'diamond'];
+      this.riftFragments.push({
+        x: Math.random() * (level.width || 2400),
+        y: Math.random() * (level.height || 900),
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: (Math.random() - 0.5) * 0.2,
+        size: 3 + Math.random() * 6,
+        shape: shapes[Math.floor(Math.random() * shapes.length)],
+        rotation: Math.random() * Math.PI * 2,
+        rotSpeed: (Math.random() - 0.5) * 0.02,
+        alpha: 0.15 + Math.random() * 0.3,
+        phase: Math.random() * Math.PI * 2,
+        isCyan: Math.random() > 0.4,
+      });
+    }
+
+    if (this.realityCracks.length >= 2) {
+      const crackPoints = [];
+      for (const crack of this.realityCracks) {
+        for (const seg of crack.segments) {
+          crackPoints.push({ x: seg.x1, y: seg.y1 });
+        }
+      }
+
+      const gridSize = 100;
+      const grid = {};
+      for (const p of crackPoints) {
+        const gx = Math.floor(p.x / gridSize);
+        const gy = Math.floor(p.y / gridSize);
+        const key = `${gx},${gy}`;
+        if (!grid[key]) grid[key] = [];
+        grid[key].push(p);
+      }
+
+      for (const key in grid) {
+        if (grid[key].length >= 3) {
+          const pts = grid[key];
+          const cx = pts.reduce((s, p) => s + p.x, 0) / pts.length;
+          const cy = pts.reduce((s, p) => s + p.y, 0) / pts.length;
+          this.riftEyes.push({
+            x: cx, y: cy,
+            size: 12 + grid[key].length * 2,
+            phase: Math.random() * Math.PI * 2,
+            irisAngle: Math.random() * Math.PI * 2,
+          });
+        }
+      }
+
+      if (this.riftEyes.length === 0 && crackPoints.length > 0) {
+        const mid = crackPoints[Math.floor(crackPoints.length / 2)];
+        this.riftEyes.push({
+          x: mid.x, y: mid.y,
+          size: 18,
+          phase: Math.random() * Math.PI * 2,
+          irisAngle: Math.random() * Math.PI * 2,
+        });
+      }
+    }
+  }
+
+  _renderRiftEnhancement(ctx, w, h) {
+    if (this.depth < 2) return;
+
+    const breathCycle = Math.sin(this.erosionTime * 0.0008) * 0.5 + 0.5;
+
+    for (const eye of this.riftEyes) {
+      const pulse = Math.sin(this.erosionTime * 0.003 + eye.phase) * 0.3 + 0.7;
+      const s = eye.size * (0.8 + pulse * 0.4);
+
+      ctx.save();
+
+      const glow = ctx.createRadialGradient(eye.x, eye.y, 0, eye.x, eye.y, s * 3);
+      glow.addColorStop(0, `rgba(255, 107, 53, ${0.06 * pulse})`);
+      glow.addColorStop(1, 'rgba(255, 107, 53, 0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(eye.x - s * 3, eye.y - s * 3, s * 6, s * 6);
+
+      ctx.beginPath();
+      ctx.ellipse(eye.x, eye.y, s * 1.2, s * 0.7, 0, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 107, 53, ${0.15 + pulse * 0.1})`;
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.ellipse(eye.x, eye.y, s * 0.7, s * 0.4, 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(20, 5, 10, 0.7)';
+      ctx.fill();
+
+      const irisX = eye.x + Math.cos(eye.irisAngle + this.erosionTime * 0.0002) * s * 0.1;
+      const irisY = eye.y + Math.sin(eye.irisAngle + this.erosionTime * 0.0002) * s * 0.06;
+      ctx.beginPath();
+      ctx.ellipse(irisX, irisY, s * 0.25, s * 0.15, 0, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 107, 53, ${0.6 + pulse * 0.3})`;
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.ellipse(irisX - s * 0.05, irisY - s * 0.03, s * 0.06, s * 0.04, 0, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 255, 255, ${0.3 + pulse * 0.2})`;
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    for (const frag of this.riftFragments) {
+      frag.x += frag.vx;
+      frag.y += frag.vy;
+      frag.rotation += frag.rotSpeed;
+
+      const levelW = this.currentLevel ? this.currentLevel.width : 2400;
+      const levelH = this.currentLevel ? this.currentLevel.height : 900;
+      if (frag.x < -20) frag.x = levelW + 20;
+      if (frag.x > levelW + 20) frag.x = -20;
+      if (frag.y < -20) frag.y = levelH + 20;
+      if (frag.y > levelH + 20) frag.y = -20;
+
+      const pulse = Math.sin(this.erosionTime * 0.002 + frag.phase) * 0.3 + 0.7;
+      const alpha = frag.alpha * pulse;
+
+      ctx.save();
+      ctx.translate(frag.x, frag.y);
+      ctx.rotate(frag.rotation);
+      ctx.globalAlpha = alpha;
+
+      if (frag.isCyan) {
+        ctx.fillStyle = COLORS.FLUORESCENT_CYAN;
+      } else {
+        ctx.fillStyle = COLORS.VOID_ORANGE;
+      }
+
+      ctx.beginPath();
+      if (frag.shape === 'hexagon') {
+        for (let i = 0; i < 6; i++) {
+          const a = (Math.PI * 2 / 6) * i - Math.PI / 2;
+          const method = i === 0 ? 'moveTo' : 'lineTo';
+          ctx[method](Math.cos(a) * frag.size, Math.sin(a) * frag.size);
+        }
+        ctx.closePath();
+      } else if (frag.shape === 'triangle') {
+        for (let i = 0; i < 3; i++) {
+          const a = (Math.PI * 2 / 3) * i - Math.PI / 2;
+          const method = i === 0 ? 'moveTo' : 'lineTo';
+          ctx[method](Math.cos(a) * frag.size, Math.sin(a) * frag.size);
+        }
+        ctx.closePath();
+      } else {
+        ctx.moveTo(0, -frag.size);
+        ctx.lineTo(frag.size * 0.6, 0);
+        ctx.lineTo(0, frag.size);
+        ctx.lineTo(-frag.size * 0.6, 0);
+        ctx.closePath();
+      }
+      ctx.fill();
+
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    }
   }
 }

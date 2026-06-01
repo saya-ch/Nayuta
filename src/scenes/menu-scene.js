@@ -201,7 +201,7 @@ export class MenuScene extends Scene {
     this.pulseRings = [];
     this.hasContinue = saveSystem.hasSave() && saveSystem.getUnlockedDepth() > 0;
     if (this.hasContinue) {
-      this.menuItems = ['继续探索', '重新开始', '关于'];
+      this.menuItems = ['继续探索', '关卡选择', '记忆图鉴', '重新开始', '关于'];
     } else {
       this.menuItems = ['开始探索', '关于'];
     }
@@ -346,11 +346,17 @@ export class MenuScene extends Scene {
           this.sceneManager.switchTo('game');
           break;
         case 1:
+          this.sceneManager.switchTo('levelSelect');
+          break;
+        case 2:
+          this.sceneManager.switchTo('codex');
+          break;
+        case 3:
           saveSystem.clearSave();
           this.sceneManager.preloadScene('game');
           this.sceneManager.switchTo('game');
           break;
-        case 2:
+        case 4:
           this.sceneManager.switchTo('about');
           break;
       }

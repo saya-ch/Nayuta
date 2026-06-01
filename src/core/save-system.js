@@ -21,6 +21,7 @@ class SaveSystem {
       playTime: 0,
       deathCount: 0,
       shownHints: [],
+      discoveredFragments: [],
       lastSaved: null,
     };
   }
@@ -49,6 +50,9 @@ class SaveSystem {
         }
         if (!this._data.shownHints) {
           this._data.shownHints = [];
+        }
+        if (!this._data.discoveredFragments) {
+          this._data.discoveredFragments = [];
         }
       } else {
         this._data = this._getDefault();
@@ -122,6 +126,20 @@ class SaveSystem {
     const data = this.getData();
     data.shownHints = hints;
     this.save(data);
+  }
+
+  addDiscoveredFragment(fragmentId) {
+    const data = this.getData();
+    if (!data.discoveredFragments) data.discoveredFragments = [];
+    if (!data.discoveredFragments.includes(fragmentId)) {
+      data.discoveredFragments.push(fragmentId);
+      this.save(data);
+    }
+  }
+
+  getDiscoveredFragments() {
+    const data = this.getData();
+    return data.discoveredFragments || [];
   }
 
   hasSave() {

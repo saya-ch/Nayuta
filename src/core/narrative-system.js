@@ -1,3 +1,5 @@
+import { saveSystem } from './save-system.js';
+
 export class NarrativeSystem {
   constructor() {
     this.fragments = [];
@@ -27,12 +29,16 @@ export class NarrativeSystem {
   loadLevelNarrative(depthIndex) {
     this.clear();
     const narrativeData = NarrativeData.getNarrative(depthIndex);
+    const savedFragments = saveSystem.getDiscoveredFragments();
     this.fragments = narrativeData.fragments.map(f => ({
       ...f,
-      discovered: false,
+      discovered: savedFragments.includes(f.id),
       pulse: Math.random() * Math.PI * 2,
       revealAlpha: 0,
     }));
+    for (const f of this.fragments) {
+      if (f.discovered) this.discoveredFragments.add(f.id);
+    }
     this.eventTriggers = narrativeData.eventTriggers.map(e => ({
       ...e,
       triggered: false,
@@ -58,6 +64,7 @@ export class NarrativeSystem {
       if (dist < 30 && !frag.discovered) {
         frag.discovered = true;
         this.discoveredFragments.add(frag.id);
+        saveSystem.addDiscoveredFragment(frag.id);
         this._triggerFragmentDiscovery(frag);
       }
 
