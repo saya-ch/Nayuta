@@ -4,6 +4,7 @@ import { PuzzleManager } from '../core/puzzle-manager.js';
 import { LevelData } from '../core/level-data.js';
 import { NarrativeSystem } from '../core/narrative-system.js';
 import { resourceManager } from '../core/resource-manager.js';
+import { saveSystem } from '../core/save-system.js';
 
 export class GameScene extends Scene {
   constructor(input, sceneManager, audioSystem) {
@@ -59,6 +60,10 @@ export class GameScene extends Scene {
 
   onEnter() {
     super.onEnter();
+    const saveData = saveSystem.load();
+    if (saveData && saveData.currentDepth > 0 && saveData.unlockedDepth >= saveData.currentDepth) {
+      this.depth = saveData.currentDepth;
+    }
     this._loadLevel(this.depth);
     if (this.audio) {
       this.audio.playBGM(this.depth);
@@ -66,6 +71,7 @@ export class GameScene extends Scene {
     }
     LevelData.preloadAdjacentLevels(this.depth);
     this._preloadNextLevelResources();
+    this._playTimeAccum = 0;
   }
 
   _preloadNextLevelResources() {
@@ -212,6 +218,12 @@ export class GameScene extends Scene {
     this.time += dt;
     const dtSec = dt / 1000;
 
+    this._playTimeAccum = (this._playTimeAccum || 0) + dt;
+    if (this._playTimeAccum >= 5000) {
+      saveSystem.addPlayTime(this._playTimeAccum);
+      this._playTimeAccum = 0;
+    }
+
     if (this.transitioning) {
       this._updateTransition(dt);
       return;
@@ -233,12 +245,15 @@ export class GameScene extends Scene {
     if (this.levelComplete) {
       this.levelCompleteAlpha = Math.min(1, this.levelCompleteAlpha + dt * 0.001);
       if (this.levelCompleteAlpha >= 1 && this.input.justPressed('Enter')) {
+        saveSystem.saveLevelProgress(this.depth, this.anchorCount, this.anchors.length, true);
         this.depth++;
         if (this.depth >= 4) {
+          saveSystem.saveCurrentDepth(0);
           this.depth = 0;
-          this.sceneManager.switchTo('menu');
+          this.sceneManager.switchTo('ending');
           return;
         }
+        saveSystem.saveCurrentDepth(this.depth);
         this.transitioning = true;
         this.transitionPhase = 1;
         this.transitionProgress = 0;
@@ -326,6 +341,7 @@ export class GameScene extends Scene {
         anchor.collected = true;
         this.anchorCount++;
         if (this.audio) this.audio.playSFX('anchorCollect');
+        saveSystem.saveLevelProgress(this.depth, this.anchorCount, this.anchors.length, false);
       }
     }
 

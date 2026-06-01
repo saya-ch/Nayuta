@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultimate Divergence — 终极分歧</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --anthropic-dark: #141413;
+            --anthropic-light: #faf9f5;
+            --anthropic-mid-gray: #b0aea5;
+            --anthropic-light-gray: #e8e6dc;
+            --anthropic-orange: #d97757;
+            --anthropic-blue: #6a9bcc;
+            --anthropic-green: #788c5d;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, var(--anthropic-light) 0%, #f5f3ee 100%);
+            min-height: 100vh;
+            color: var(--anthropic-dark);
+        }
+        .container { display: flex; min-height: 100vh; padding: 20px; gap: 20px; }
+        .sidebar {
+            width: 320px; flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 24px; border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(20, 20, 19, 0.1);
+            overflow-y: auto; overflow-x: hidden;
+        }
+        .sidebar h1 { font-family: 'Lora', serif; font-size: 24px; font-weight: 500; color: var(--anthropic-dark); margin-bottom: 8px; }
+        .sidebar .subtitle { color: var(--anthropic-mid-gray); font-size: 14px; margin-bottom: 32px; line-height: 1.4; }
+        .control-section { margin-bottom: 32px; }
+        .control-section h3 { font-size: 16px; font-weight: 600; color: var(--anthropic-dark); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .control-section h3::before { content: '•'; color: var(--anthropic-orange); font-weight: bold; }
+        .seed-input { width: 100%; background: var(--anthropic-light); padding: 12px; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 14px; margin-bottom: 12px; border: 1px solid var(--anthropic-light-gray); text-align: center; }
+        .seed-input:focus { outline: none; border-color: var(--anthropic-orange); box-shadow: 0 0 0 2px rgba(217, 119, 87, 0.1); background: white; }
+        .seed-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+        .regen-button { margin-bottom: 0; }
+        .control-group { margin-bottom: 20px; }
+        .control-group label { display: block; font-size: 14px; font-weight: 500; color: var(--anthropic-dark); margin-bottom: 8px; }
+        .slider-container { display: flex; align-items: center; gap: 12px; }
+        .slider-container input[type="range"] { flex: 1; height: 4px; background: var(--anthropic-light-gray); border-radius: 2px; outline: none; -webkit-appearance: none; }
+        .slider-container input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; background: var(--anthropic-orange); border-radius: 50%; cursor: pointer; transition: all 0.2s ease; }
+        .slider-container input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.1); background: #c86641; }
+        .slider-container input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; background: var(--anthropic-orange); border-radius: 50%; border: none; cursor: pointer; }
+        .value-display { font-family: 'Courier New', monospace; font-size: 12px; color: var(--anthropic-mid-gray); min-width: 60px; text-align: right; }
+        .color-group { margin-bottom: 16px; }
+        .color-group label { display: block; font-size: 12px; color: var(--anthropic-mid-gray); margin-bottom: 4px; }
+        .color-picker-container { display: flex; align-items: center; gap: 8px; }
+        .color-picker-container input[type="color"] { width: 32px; height: 32px; border: none; border-radius: 6px; cursor: pointer; background: none; padding: 0; }
+        .color-value { font-family: 'Courier New', monospace; font-size: 12px; color: var(--anthropic-mid-gray); }
+        .button { background: var(--anthropic-orange); color: white; border: none; padding: 10px 16px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s ease; width: 100%; }
+        .button:hover { background: #c86641; transform: translateY(-1px); }
+        .button:active { transform: translateY(0); }
+        .button.secondary { background: var(--anthropic-blue); }
+        .button.secondary:hover { background: #5a8bb8; }
+        .button.tertiary { background: var(--anthropic-green); }
+        .button.tertiary:hover { background: #6b7b52; }
+        .button-row { display: flex; gap: 8px; }
+        .button-row .button { flex: 1; }
+        .canvas-area { flex: 1; display: flex; align-items: center; justify-content: center; min-width: 0; }
+        #canvas-container { width: 100%; max-width: 1000px; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 40px rgba(20, 20, 19, 0.1); background: #000; }
+        #canvas-container canvas { display: block; width: 100% !important; height: auto !important; }
+        .loading { display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--anthropic-mid-gray); }
+        @media (max-width: 600px) { .container { flex-direction: column; } .sidebar { width: 100%; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h1>Ultimate Divergence</h1>
+            <div class="subtitle">终极分歧 — 虚无与深渊之间的抉择视觉化</div>
+
+            <div class="control-section">
+                <h3>Seed</h3>
+                <input type="number" id="seed-input" class="seed-input" value="42" onchange="updateSeed()">
+                <div class="seed-controls">
+                    <button class="button secondary" onclick="previousSeed()">← Prev</button>
+                    <button class="button secondary" onclick="nextSeed()">Next →</button>
+                </div>
+                <button class="button tertiary regen-button" onclick="randomSeedAndUpdate()">↻ Random</button>
+            </div>
+
+            <div class="control-section">
+                <h3>Parameters</h3>
+                <div class="control-group">
+                    <label>粒子数量</label>
+                    <div class="slider-container">
+                        <input type="range" id="particleCount" min="100" max="800" step="50" value="400" oninput="updateParam('particleCount', this.value)">
+                        <span class="value-display" id="particleCount-value">400</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>引力强度</label>
+                    <div class="slider-container">
+                        <input type="range" id="gravityStrength" min="0.5" max="5.0" step="0.1" value="2.0" oninput="updateParam('gravityStrength', this.value)">
+                        <span class="value-display" id="gravityStrength-value">2.0</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>呼吸速度</label>
+                    <div class="slider-container">
+                        <input type="range" id="breathSpeed" min="0.2" max="3.0" step="0.1" value="1.0" oninput="updateParam('breathSpeed', this.value)">
+                        <span class="value-display" id="breathSpeed-value">1.0</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>裂缝数量</label>
+                    <div class="slider-container">
+                        <input type="range" id="crackCount" min="2" max="16" step="1" value="6" oninput="updateParam('crackCount', this.value)">
+                        <span class="value-display" id="crackCount-value">6</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>噪声扰动</label>
+                    <div class="slider-container">
+                        <input type="range" id="noiseTurbulence" min="0.1" max="3.0" step="0.1" value="1.0" oninput="updateParam('noiseTurbulence', this.value)">
+                        <span class="value-display" id="noiseTurbulence-value">1.0</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>撕裂带宽度</label>
+                    <div class="slider-container">
+                        <input type="range" id="riftWidth" min="30" max="200" step="10" value="100" oninput="updateParam('riftWidth', this.value)">
+                        <span class="value-display" id="riftWidth-value">100</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Colors</h3>
+                <div class="color-group">
+                    <label>虚无之色（左奇点）</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="colorVoid" value="#00FFD4" onchange="updateColor('colorVoid', this.value)">
+                        <span class="color-value" id="colorVoid-value">#00FFD4</span>
+                    </div>
+                </div>
+                <div class="color-group">
+                    <label>深渊之色（右奇点）</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="colorAbyss" value="#FF6B35" onchange="updateColor('colorAbyss', this.value)">
+                        <span class="color-value" id="colorAbyss-value">#FF6B35</span>
+                    </div>
+                </div>
+                <div class="color-group">
+                    <label>裂缝之色</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="colorCrack" value="#FF0044" onchange="updateColor('colorCrack', this.value)">
+                        <span class="color-value" id="colorCrack-value">#FF0044</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Actions</h3>
+                <div class="button-row">
+                    <button class="button" onclick="resetParameters()">Reset</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="canvas-area">
+            <div id="canvas-container">
+                <div class="loading">Initializing Ultimate Divergence...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let params = {
+            seed: 42,
+            particleCount: 400,
+            gravityStrength: 2.0,
+            breathSpeed: 1.0,
+            crackCount: 6,
+            noiseTurbulence: 1.0,
+            riftWidth: 100,
+            colorVoid: '#00FFD4',
+            colorAbyss: '#FF6B35',
+            colorCrack: '#FF0044'
+        };
+        let defaultParams = JSON.parse(JSON.stringify(params));
+
+        let particles = [];
+        let cracks = [];
+        let time = 0;
+
+        function hexToRgb(hex) {
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            return { r, g, b };
+        }
+
+        function setup() {
+            let canvas = createCanvas(1200, 800);
+            canvas.parent('canvas-container');
+            document.querySelector('.loading').style.display = 'none';
+            initializeSystem();
+        }
+
+        function initializeSystem() {
+            randomSeed(params.seed);
+            noiseSeed(params.seed);
+            time = 0;
+
+            particles = [];
+            for (let i = 0; i < params.particleCount; i++) {
+                particles.push(new DivergenceParticle());
+            }
+
+            cracks = [];
+            for (let i = 0; i < params.crackCount; i++) {
+                cracks.push(new RealityCrack());
+            }
+
+            background(0);
+        }
+
+        function draw() {
+            time += 0.016;
+
+            fill(0, 0, 0, 15);
+            noStroke();
+            rect(0, 0, width, height);
+
+            const leftSingularity = { x: width * 0.3, y: height * 0.5 };
+            const rightSingularity = { x: width * 0.7, y: height * 0.5 };
+
+            const breathL = Math.sin(time * params.breathSpeed * 0.8) * 0.5 + 0.5;
+            const breathR = Math.sin(time * params.breathSpeed * 1.1 + Math.PI * 0.7) * 0.5 + 0.5;
+
+            this._renderSingularityGlow(leftSingularity, breathL, params.colorVoid, 0.6);
+            this._renderSingularityGlow(rightSingularity, breathR, params.colorAbyss, 0.6);
+
+            this._renderRiftZone(leftSingularity, rightSingularity, breathL, breathR);
+
+            for (const crack of cracks) {
+                crack.update();
+                crack.render();
+            }
+
+            for (const p of particles) {
+                p.update(leftSingularity, rightSingularity, breathL, breathR);
+                p.render();
+            }
+
+            this._renderEyeEffect(leftSingularity, rightSingularity, breathL, breathR);
+        }
+
+        function _renderSingularityGlow(pos, breath, colorHex, intensity) {
+            const rgb = hexToRgb(colorHex);
+            const r = 80 + breath * 60;
+
+            noStroke();
+            for (let i = 5; i >= 0; i--) {
+                const layerR = r + i * 30;
+                const alpha = intensity * (0.02 + breath * 0.015) * (1 - i / 5);
+                fill(rgb.r, rgb.g, rgb.b, alpha * 255);
+                ellipse(pos.x, pos.y, layerR * 2, layerR * 2);
+            }
+
+            fill(rgb.r, rgb.g, rgb.b, (0.15 + breath * 0.1) * 255);
+            ellipse(pos.x, pos.y, 20 + breath * 10, 20 + breath * 10);
+
+            fill(255, 255, 255, (0.3 + breath * 0.2) * 255);
+            ellipse(pos.x, pos.y, 6 + breath * 4, 6 + breath * 4);
+        }
+
+        function _renderRiftZone(left, right, breathL, breathR) {
+            const cx = (left.x + right.x) / 2;
+            const cy = (left.y + right.y) / 2;
+            const riftIntensity = Math.abs(breathL - breathR);
+            const halfW = params.riftWidth;
+
+            const crackRgb = hexToRgb(params.colorCrack);
+            const voidRgb = hexToRgb(params.colorVoid);
+            const abyssRgb = hexToRgb(params.colorAbyss);
+
+            noStroke();
+            for (let y = 0; y < height; y += 8) {
+                const noiseVal = noise(cx * 0.003, y * 0.005, time * 0.3) * 2 - 1;
+                const offsetX = noiseVal * halfW * 0.5;
+                const alpha = riftIntensity * 0.04 * (1 + Math.sin(y * 0.02 + time * 2) * 0.3);
+
+                const mixR = (voidRgb.r + abyssRgb.r) / 2;
+                const mixG = (voidRgb.g + abyssRgb.g) / 2;
+                const mixB = (voidRgb.b + abyssRgb.b) / 2;
+
+                fill(mixR, mixG, mixB, alpha * 255);
+                rect(cx + offsetX - halfW * 0.3, y, halfW * 0.6, 8);
+            }
+
+            if (riftIntensity > 0.3) {
+                const pulseAlpha = (riftIntensity - 0.3) * 0.1 * Math.sin(time * 3);
+                fill(crackRgb.r, crackRgb.g, crackRgb.b, Math.abs(pulseAlpha) * 255);
+                ellipse(cx, cy, halfW * 1.5, height * 0.6);
+            }
+        }
+
+        function _renderEyeEffect(left, right, breathL, breathR) {
+            const cx = (left.x + right.x) / 2;
+            const cy = (left.y + right.y) / 2;
+            const riftIntensity = Math.abs(breathL - breathR);
+
+            if (riftIntensity > 0.5) {
+                const eyeOpen = (riftIntensity - 0.5) * 2;
+                const eyeW = 60 * eyeOpen;
+                const eyeH = 20 * eyeOpen * (0.3 + 0.7 * Math.abs(Math.sin(time * 0.5)));
+
+                const crackRgb = hexToRgb(params.colorCrack);
+                noStroke();
+
+                fill(crackRgb.r, crackRgb.g, crackRgb.b, 30 * eyeOpen);
+                ellipse(cx, cy - 30, eyeW * 2, eyeH * 2);
+
+                fill(crackRgb.r, crackRgb.g, crackRgb.b, 80 * eyeOpen);
+                ellipse(cx, cy - 30, eyeW, eyeH);
+
+                fill(255, 200, 100, 150 * eyeOpen);
+                ellipse(cx, cy - 30, 10 * eyeOpen, 10 * eyeOpen);
+            }
+        }
+
+        class DivergenceParticle {
+            constructor() {
+                this.x = random(width);
+                this.y = random(height);
+                this.vx = random(-0.5, 0.5);
+                this.vy = random(-0.5, 0.5);
+                this.size = random(1, 3);
+                this.baseAlpha = random(0.2, 0.6);
+                this.tendency = random();
+                this.trail = [];
+                this.maxTrail = floor(random(3, 8));
+                this.noiseOffsetX = random(1000);
+                this.noiseOffsetY = random(2000);
+            }
+
+            update(left, right, breathL, breathR) {
+                const dxL = left.x - this.x;
+                const dyL = left.y - this.y;
+                const distL = Math.sqrt(dxL * dxL + dyL * dyL) + 1;
+
+                const dxR = right.x - this.x;
+                const dyR = right.y - this.y;
+                const distR = Math.sqrt(dxR * dxR + dyR * dyR) + 1;
+
+                const gravL = params.gravityStrength * breathL / (distL * 0.05 + 1);
+                const gravR = params.gravityStrength * breathR / (distR * 0.05 + 1);
+
+                this.vx += (dxL / distL) * gravL * 0.01 + (dxR / distR) * gravR * 0.01;
+                this.vy += (dyL / distL) * gravL * 0.01 + (dyR / distR) * gravR * 0.01;
+
+                const noiseX = noise(this.x * 0.003 + this.noiseOffsetX, this.y * 0.003, time * 0.2) - 0.5;
+                const noiseY = noise(this.x * 0.003, this.y * 0.003 + this.noiseOffsetY, time * 0.2) - 0.5;
+                this.vx += noiseX * params.noiseTurbulence * 0.3;
+                this.vy += noiseY * params.noiseTurbulence * 0.3;
+
+                this.vx *= 0.98;
+                this.vy *= 0.98;
+
+                this.trail.push({ x: this.x, y: this.y });
+                if (this.trail.length > this.maxTrail) {
+                    this.trail.shift();
+                }
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                const influenceL = 1 / (distL * 0.01 + 1);
+                const influenceR = 1 / (distR * 0.01 + 1);
+                const totalInfluence = influenceL + influenceR;
+                this.tendency = this.tendency * 0.99 + (influenceR / totalInfluence) * 0.01;
+
+                if (this.x < -20) this.x = width + 20;
+                if (this.x > width + 20) this.x = -20;
+                if (this.y < -20) this.y = height + 20;
+                if (this.y > height + 20) this.y = -20;
+            }
+
+            render() {
+                const voidRgb = hexToRgb(params.colorVoid);
+                const abyssRgb = hexToRgb(params.colorAbyss);
+                const t = this.tendency;
+
+                const r = voidRgb.r * (1 - t) + abyssRgb.r * t;
+                const g = voidRgb.g * (1 - t) + abyssRgb.g * t;
+                const b = voidRgb.b * (1 - t) + abyssRgb.b * t;
+
+                noStroke();
+
+                if (this.trail.length > 1) {
+                    for (let i = 1; i < this.trail.length; i++) {
+                        const alpha = (i / this.trail.length) * this.baseAlpha * 0.3;
+                        stroke(r, g, b, alpha * 255);
+                        strokeWeight(this.size * 0.5);
+                        line(this.trail[i - 1].x, this.trail[i - 1].y, this.trail[i].x, this.trail[i].y);
+                    }
+                }
+
+                noStroke();
+                fill(r, g, b, this.baseAlpha * 255);
+                ellipse(this.x, this.y, this.size, this.size);
+            }
+        }
+
+        class RealityCrack {
+            constructor() {
+                this.segments = [];
+                this.growth = 0;
+                this.maxGrowth = 0;
+                this.healTimer = 0;
+                this.age = 0;
+                this._generate();
+            }
+
+            _generate() {
+                const cx = width / 2;
+                const startY = random(height * 0.1, height * 0.9);
+                let x = cx + random(-params.riftWidth * 0.3, params.riftWidth * 0.3);
+                let y = startY;
+                let angle = random(-0.5, 0.5);
+
+                const totalSeg = floor(random(4, 10));
+                for (let j = 0; j < totalSeg; j++) {
+                    const len = random(15, 45);
+                    const nx = x + Math.cos(angle) * len;
+                    const ny = y + Math.sin(angle) * len;
+                    this.segments.push({ x1: x, y1: y, x2: nx, y2: ny });
+                    x = nx;
+                    y = ny;
+                    angle += random(-0.6, 0.6);
+                }
+                this.maxGrowth = totalSeg;
+                this.growth = 0;
+                this.healTimer = random(5000, 12000);
+                this.age = 0;
+            }
+
+            update() {
+                this.age += 16;
+                if (this.growth < this.maxGrowth) {
+                    this.growth += 0.02;
+                }
+                this.healTimer -= 16;
+                if (this.healTimer <= 0) {
+                    this.growth = 0;
+                    this.healTimer = random(5000, 12000);
+                    this.age = 0;
+                    this._generate();
+                }
+            }
+
+            render() {
+                const visibleSegs = floor(this.growth);
+                if (visibleSegs <= 0) return;
+
+                const crackRgb = hexToRgb(params.colorCrack);
+                const flicker = Math.sin(time * 5 + this.age * 0.001) * 0.3 + 0.7;
+
+                for (let i = 0; i < Math.min(visibleSegs, this.segments.length); i++) {
+                    const seg = this.segments[i];
+                    const isLast = i === visibleSegs - 1;
+                    const segAlpha = isLast ? (this.growth - visibleSegs) : 1;
+
+                    stroke(crackRgb.r, crackRgb.g, crackRgb.b, 0.4 * segAlpha * flicker * 255);
+                    strokeWeight(1.5);
+                    line(seg.x1, seg.y1, seg.x2, seg.y2);
+
+                    stroke(255, 200, 150, 0.1 * segAlpha * flicker * 255);
+                    strokeWeight(0.5);
+                    line(seg.x1, seg.y1, seg.x2, seg.y2);
+                }
+
+                if (this.growth > 2) {
+                    const tip = this.segments[Math.min(visibleSegs - 1, this.segments.length - 1)];
+                    noStroke();
+                    fill(crackRgb.r, crackRgb.g, crackRgb.b, 0.1 * flicker * 255);
+                    ellipse(tip.x2, tip.y2, 15, 15);
+                }
+            }
+        }
+
+        function updateParam(paramName, value) {
+            const numVal = parseFloat(value);
+            params[paramName] = numVal;
+            document.getElementById(paramName + '-value').textContent = numVal;
+
+            if (paramName === 'particleCount' || paramName === 'crackCount') {
+                initializeSystem();
+            }
+        }
+
+        function updateColor(colorId, value) {
+            params[colorId] = value;
+            document.getElementById(colorId + '-value').textContent = value;
+        }
+
+        function updateSeedDisplay() {
+            document.getElementById('seed-input').value = params.seed;
+        }
+
+        function updateSeed() {
+            let input = document.getElementById('seed-input');
+            let newSeed = parseInt(input.value);
+            if (newSeed && newSeed > 0) {
+                params.seed = newSeed;
+                initializeSystem();
+            } else {
+                updateSeedDisplay();
+            }
+        }
+
+        function previousSeed() {
+            params.seed = Math.max(1, params.seed - 1);
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function nextSeed() {
+            params.seed = params.seed + 1;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function randomSeedAndUpdate() {
+            params.seed = Math.floor(Math.random() * 999999) + 1;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function resetParameters() {
+            params = JSON.parse(JSON.stringify(defaultParams));
+            document.getElementById('particleCount').value = params.particleCount;
+            document.getElementById('particleCount-value').textContent = params.particleCount;
+            document.getElementById('gravityStrength').value = params.gravityStrength;
+            document.getElementById('gravityStrength-value').textContent = params.gravityStrength;
+            document.getElementById('breathSpeed').value = params.breathSpeed;
+            document.getElementById('breathSpeed-value').textContent = params.breathSpeed;
+            document.getElementById('crackCount').value = params.crackCount;
+            document.getElementById('crackCount-value').textContent = params.crackCount;
+            document.getElementById('noiseTurbulence').value = params.noiseTurbulence;
+            document.getElementById('noiseTurbulence-value').textContent = params.noiseTurbulence;
+            document.getElementById('riftWidth').value = params.riftWidth;
+            document.getElementById('riftWidth-value').textContent = params.riftWidth;
+            document.getElementById('colorVoid').value = params.colorVoid;
+            document.getElementById('colorVoid-value').textContent = params.colorVoid;
+            document.getElementById('colorAbyss').value = params.colorAbyss;
+            document.getElementById('colorAbyss-value').textContent = params.colorAbyss;
+            document.getElementById('colorCrack').value = params.colorCrack;
+            document.getElementById('colorCrack-value').textContent = params.colorCrack;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        window.addEventListener('load', function() {
+            updateSeedDisplay();
+        });
+    </script>
+</body>
+</html>

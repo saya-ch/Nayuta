@@ -1,5 +1,6 @@
 import { Scene } from '../core/scene.js';
 import { COLORS } from '../constants.js';
+import { saveSystem } from '../core/save-system.js';
 
 export class MenuScene extends Scene {
   constructor(input, sceneManager, audioSystem) {
@@ -9,6 +10,7 @@ export class MenuScene extends Scene {
     this.audio = audioSystem;
     this.selectedIndex = 0;
     this.menuItems = ['开始探索', '设置', '关于'];
+    this.hasContinue = false;
     this.stars = [];
     this.stardust = [];
     this.time = 0;
@@ -90,6 +92,12 @@ export class MenuScene extends Scene {
     this.menuAlpha = 0;
     this.hintAlpha = 0;
     this.selectedIndex = 0;
+    this.hasContinue = saveSystem.hasSave() && saveSystem.getUnlockedDepth() > 0;
+    if (this.hasContinue) {
+      this.menuItems = ['继续探索', '重新开始', '关于'];
+    } else {
+      this.menuItems = ['开始探索', '关于'];
+    }
     if (this.audio) {
       this.audio.playBGM(-1);
     }
@@ -145,11 +153,31 @@ export class MenuScene extends Scene {
   }
 
   _selectItem() {
-    switch (this.selectedIndex) {
-      case 0:
-        this.sceneManager.preloadScene('game');
-        this.sceneManager.switchTo('game');
-        break;
+    if (this.hasContinue) {
+      switch (this.selectedIndex) {
+        case 0:
+          this.sceneManager.preloadScene('game');
+          this.sceneManager.switchTo('game');
+          break;
+        case 1:
+          saveSystem.clearSave();
+          this.sceneManager.preloadScene('game');
+          this.sceneManager.switchTo('game');
+          break;
+        case 2:
+          this.sceneManager.switchTo('about');
+          break;
+      }
+    } else {
+      switch (this.selectedIndex) {
+        case 0:
+          this.sceneManager.preloadScene('game');
+          this.sceneManager.switchTo('game');
+          break;
+        case 1:
+          this.sceneManager.switchTo('about');
+          break;
+      }
     }
   }
 
@@ -376,5 +404,19 @@ export class MenuScene extends Scene {
     ctx.textBaseline = 'middle';
     ctx.fillText('↑↓ 选择  ·  Enter 确认  ·  鼠标点击', w / 2, h * 0.88);
     ctx.restore();
+
+    if (this.hasContinue) {
+      const data = saveSystem.getData();
+      ctx.save();
+      ctx.globalAlpha = this.hintAlpha * 0.4;
+      ctx.font = '300 11px "Segoe UI", system-ui, sans-serif';
+      ctx.fillStyle = COLORS.STARDUST_GRAY;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const depthText = `已解锁深度 ${data.unlockedDepth + 1}/4`;
+      const timeText = `游玩时间 ${saveSystem.formatPlayTime(data.playTime || 0)}`;
+      ctx.fillText(`${depthText}  ·  ${timeText}`, w / 2, h * 0.93);
+      ctx.restore();
+    }
   }
 }
