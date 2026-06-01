@@ -45,12 +45,14 @@ export class SceneManager {
       if (this.transitionElapsed < halfDuration) {
         this.transitionAlpha = this.transitionElapsed / halfDuration;
       } else {
-        if (this.currentScene) {
-          this.currentScene.onExit();
+        if (this.pendingScene) {
+          if (this.currentScene) {
+            this.currentScene.onExit();
+          }
+          this.currentScene = this.pendingScene;
+          this.currentScene.onEnter();
+          this.pendingScene = null;
         }
-        this.currentScene = this.pendingScene;
-        this.currentScene.onEnter();
-        this.pendingScene = null;
 
         const fadeOutElapsed = this.transitionElapsed - halfDuration;
         this.transitionAlpha = 1 - (fadeOutElapsed / halfDuration);
