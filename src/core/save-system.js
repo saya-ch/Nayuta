@@ -22,6 +22,7 @@ class SaveSystem {
       deathCount: 0,
       shownHints: [],
       discoveredFragments: [],
+      discoveredSecrets: [],
       lastSaved: null,
     };
   }
@@ -53,6 +54,9 @@ class SaveSystem {
         }
         if (!this._data.discoveredFragments) {
           this._data.discoveredFragments = [];
+        }
+        if (!this._data.discoveredSecrets) {
+          this._data.discoveredSecrets = [];
         }
       } else {
         this._data = this._getDefault();
@@ -140,6 +144,25 @@ class SaveSystem {
   getDiscoveredFragments() {
     const data = this.getData();
     return data.discoveredFragments || [];
+  }
+
+  discoverSecret(secretId) {
+    const data = this.getData();
+    if (!data.discoveredSecrets) data.discoveredSecrets = [];
+    if (!data.discoveredSecrets.includes(secretId)) {
+      data.discoveredSecrets.push(secretId);
+      this.save(data);
+    }
+  }
+
+  isSecretDiscovered(secretId) {
+    const data = this.getData();
+    return (data.discoveredSecrets || []).includes(secretId);
+  }
+
+  getDiscoveredSecretsCount() {
+    const data = this.getData();
+    return (data.discoveredSecrets || []).length;
   }
 
   hasSave() {

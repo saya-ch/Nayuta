@@ -174,6 +174,32 @@ export class LevelData {
       ],
       completionText: '浅层记忆之门已开启',
       completionSubtext: '更深处的记忆在呼唤...',
+      secretAreas: [
+        {
+          id: 'l1_secret1',
+          x: 2280, y: 400, w: 120, h: 80,
+          entryX: 2300, entryY: 560,
+          triggerRadius: 40,
+          platforms: [
+            { x: 2260, y: 480, w: 140, h: 14 },
+          ],
+          anchors: [{ x: 2330, y: 450 }],
+          narrativeFragment: { id: 'd1_secret1', text: '在最深的光里，藏着最初的记忆', hint: '隐秘的光...', shape: 'diamond', color: '0, 255, 212', size: 10 },
+          revealText: '发现隐藏记忆',
+        },
+        {
+          id: 'l1_secret2',
+          x: 80, y: 200, w: 100, h: 80,
+          entryX: 150, entryY: 400,
+          triggerRadius: 35,
+          platforms: [
+            { x: 60, y: 280, w: 120, h: 14 },
+          ],
+          anchors: [{ x: 120, y: 250 }],
+          narrativeFragment: { id: 'd1_secret2', text: '星星不是在坠落，而是在回归', hint: '星光之外...', shape: 'triangle', color: '0, 136, 255', size: 9 },
+          revealText: '发现隐藏记忆',
+        },
+      ],
     };
   }
 
@@ -330,6 +356,32 @@ export class LevelData {
       ],
       completionText: '中层记忆之门已开启',
       completionSubtext: '黑暗在逼近...',
+      secretAreas: [
+        {
+          id: 'l2_secret1',
+          x: 2420, y: 200, w: 120, h: 80,
+          entryX: 2450, entryY: 400,
+          triggerRadius: 40,
+          platforms: [
+            { x: 2400, y: 280, w: 140, h: 14 },
+          ],
+          anchors: [{ x: 2470, y: 250 }],
+          narrativeFragment: { id: 'd2_secret1', text: '紫色不是颜色，是时间的淤伤', hint: '时间之外...', shape: 'diamond', color: '138, 43, 226', size: 10 },
+          revealText: '发现隐藏记忆',
+        },
+        {
+          id: 'l2_secret2',
+          x: 600, y: 100, w: 100, h: 80,
+          entryX: 650, entryY: 300,
+          triggerRadius: 35,
+          platforms: [
+            { x: 580, y: 180, w: 120, h: 14 },
+          ],
+          anchors: [{ x: 640, y: 150 }],
+          narrativeFragment: { id: 'd2_secret2', text: '那些眼睛看到的不是你，而是你背后的虚空', hint: '虚空之眼...', shape: 'triangle', color: '138, 43, 226', size: 9 },
+          revealText: '发现隐藏记忆',
+        },
+      ],
     };
   }
 
@@ -495,6 +547,32 @@ export class LevelData {
       ],
       completionText: '深层记忆之门已开启',
       completionSubtext: '你已接近真相...',
+      secretAreas: [
+        {
+          id: 'l3_secret1',
+          x: 2720, y: 200, w: 120, h: 80,
+          entryX: 2750, entryY: 500,
+          triggerRadius: 40,
+          platforms: [
+            { x: 2700, y: 280, w: 140, h: 14 },
+          ],
+          anchors: [{ x: 2770, y: 250 }],
+          narrativeFragment: { id: 'd3_secret1', text: '燃烧的不是记忆，是记忆试图留下的痕迹', hint: '灰烬之下...', shape: 'diamond', color: '255, 107, 53', size: 10 },
+          revealText: '发现隐藏记忆',
+        },
+        {
+          id: 'l3_secret2',
+          x: 200, y: 100, w: 100, h: 80,
+          entryX: 250, entryY: 350,
+          triggerRadius: 35,
+          platforms: [
+            { x: 180, y: 180, w: 120, h: 14 },
+          ],
+          anchors: [{ x: 240, y: 150 }],
+          narrativeFragment: { id: 'd3_secret2', text: '深渊的心跳与你的同步，因为它一直在你体内', hint: '心跳之间...', shape: 'triangle', color: '255, 0, 68', size: 9 },
+          revealText: '发现隐藏记忆',
+        },
+      ],
     };
   }
 
@@ -668,6 +746,20 @@ export class LevelData {
       ],
       completionText: '你凝视了深渊',
       completionSubtext: '而深渊也凝视了你...',
+      secretAreas: [
+        {
+          id: 'l4_secret1',
+          x: 2900, y: 200, w: 120, h: 80,
+          entryX: 2930, entryY: 600,
+          triggerRadius: 40,
+          platforms: [
+            { x: 2880, y: 280, w: 140, h: 14 },
+          ],
+          anchors: [{ x: 2950, y: 250 }],
+          narrativeFragment: { id: 'd4_secret1', text: '那由他不是距离，是你与真实之间的裂隙', hint: '真实之隙...', shape: 'diamond', color: '255, 0, 68', size: 10 },
+          revealText: '发现隐藏记忆',
+        },
+      ],
     };
   }
 }

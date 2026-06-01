@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Abyssal Consummation — 深渊侵蚀蔓延</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --anthropic-dark: #141413;
+            --anthropic-light: #faf9f5;
+            --anthropic-mid-gray: #b0aea5;
+            --anthropic-light-gray: #e8e6dc;
+            --anthropic-orange: #d97757;
+            --anthropic-blue: #6a9bcc;
+            --anthropic-green: #788c5d;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, var(--anthropic-light) 0%, #f5f3ee 100%);
+            min-height: 100vh; color: var(--anthropic-dark);
+        }
+        .container { display: flex; min-height: 98vh; padding: 10px; gap: 20px; }
+        .sidebar {
+            width: 300px; flex-shrink: 0; background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px); padding: 18px; border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(20,20,19,0.1); overflow-y: auto;
+        }
+        .sidebar h1 { font-family: 'Lora', serif; font-size: 22px; font-weight: 500; margin-bottom: 4px; }
+        .sidebar .subtitle { color: var(--anthropic-mid-gray); font-size: 12px; margin-bottom: 20px; line-height: 1.3; }
+        .control-section { margin-bottom: 24px; }
+        .control-section h3 { font-size: 14px; font-weight: 600; color: var(--anthropic-dark); margin-bottom: 12px; }
+        .control-section h3::before { content: '•'; color: var(--anthropic-orange); font-weight: bold; margin-right: 6px; }
+        .seed-input { width: 100%; background: var(--anthropic-light); padding: 10px; border-radius: 6px; font-family: 'Courier New', monospace; font-size: 13px; margin-bottom: 8px; border: 1px solid var(--anthropic-light-gray); text-align: center; }
+        .seed-input:focus { outline: none; border-color: var(--anthropic-orange); box-shadow: 0 0 0 2px rgba(217,119,87,0.1); background: white; }
+        .seed-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px; }
+        .control-group { margin-bottom: 16px; }
+        .control-group label { display: block; font-size: 13px; font-weight: 500; color: var(--anthropic-dark); margin-bottom: 6px; }
+        .slider-container { display: flex; align-items: center; gap: 10px; }
+        .slider-container input[type="range"] { flex: 1; height: 3px; background: var(--anthropic-light-gray); border-radius: 2px; outline: none; -webkit-appearance: none; }
+        .slider-container input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: var(--anthropic-orange); border-radius: 50%; cursor: pointer; }
+        .slider-container input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; background: var(--anthropic-orange); border-radius: 50%; border: none; cursor: pointer; }
+        .value-display { font-family: 'Courier New', monospace; font-size: 11px; color: var(--anthropic-mid-gray); min-width: 50px; text-align: right; }
+        .color-group { margin-bottom: 14px; }
+        .color-group label { display: block; font-size: 11px; color: var(--anthropic-mid-gray); margin-bottom: 3px; }
+        .color-picker-container { display: flex; align-items: center; gap: 6px; }
+        .color-picker-container input[type="color"] { width: 28px; height: 28px; border: none; border-radius: 5px; cursor: pointer; background: none; padding: 0; }
+        .color-value { font-family: 'Courier New', monospace; font-size: 11px; color: var(--anthropic-mid-gray); }
+        .button { background: var(--anthropic-orange); color: white; border: none; padding: 8px 12px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s ease; width: 100%; }
+        .button:hover { background: #c86641; transform: translateY(-1px); }
+        .button:active { transform: translateY(0); }
+        .button.secondary { background: var(--anthropic-blue); }
+        .button.secondary:hover { background: #5a8bb8; }
+        .button.tertiary { background: var(--anthropic-green); }
+        .button.tertiary:hover { background: #6b7b52; }
+        .button-row { display: flex; gap: 6px; }
+        .button-row .button { flex: 1; }
+        .canvas-area { flex: 1; display: flex; align-items: center; justify-content: center; min-width: 0; }
+        #canvas-container { width: 100%; max-width: 1100px; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 40px rgba(20,20,19,0.15); background: #0A0E1A; }
+        #canvas-container canvas { display: block; width: 100% !important; height: auto !important; }
+        @media (max-width: 600px) { .container { flex-direction: column; } .sidebar { width: 100%; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h1>Abyssal Consummation</h1>
+            <div class="subtitle">深渊侵蚀蔓延 · 裂痕蔓延+现实溶解+维度坍塌+记忆消散</div>
+
+            <div class="control-section">
+                <h3>Seed</h3>
+                <input type="number" id="seed-input" class="seed-input" value="42" onchange="updateSeed()">
+                <div class="seed-controls">
+                    <button class="button secondary" onclick="previousSeed()">← Prev</button>
+                    <button class="button secondary" onclick="nextSeed()">Next →</button>
+                </div>
+                <div class="seed-controls">
+                    <button class="button tertiary" onclick="randomSeedAndUpdate()">↻ Random</button>
+                    <button class="button tertiary" onclick="jumpSeed()">⇥ Jump</button>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Erosion Parameters</h3>
+                <div class="control-group"><label>Crack Count</label><div class="slider-container"><input type="range" id="crackCount" min="3" max="15" step="1" value="8" oninput="updateParam('crackCount', this.value)"><span class="value-display" id="crackCount-value">8</span></div></div>
+                <div class="control-group"><label>Branch Depth</label><div class="slider-container"><input type="range" id="branchDepth" min="1" max="5" step="1" value="3" oninput="updateParam('branchDepth', this.value)"><span class="value-display" id="branchDepth-value">3</span></div></div>
+                <div class="control-group"><label>Dissolution Speed</label><div class="slider-container"><input type="range" id="dissolutionSpeed" min="0.1" max="2.0" step="0.01" value="0.5" oninput="updateParam('dissolutionSpeed', this.value)"><span class="value-display" id="dissolutionSpeed-value">0.50</span></div></div>
+                <div class="control-group"><label>Fragment Count</label><div class="slider-container"><input type="range" id="fragmentCount" min="10" max="100" step="1" value="40" oninput="updateParam('fragmentCount', this.value)"><span class="value-display" id="fragmentCount-value">40</span></div></div>
+                <div class="control-group"><label>Pulse Frequency</label><div class="slider-container"><input type="range" id="pulseFrequency" min="0.1" max="1.0" step="0.01" value="0.3" oninput="updateParam('pulseFrequency', this.value)"><span class="value-display" id="pulseFrequency-value">0.30</span></div></div>
+                <div class="control-group"><label>Erosion Intensity</label><div class="slider-container"><input type="range" id="erosionIntensity" min="0.1" max="1.0" step="0.01" value="0.6" oninput="updateParam('erosionIntensity', this.value)"><span class="value-display" id="erosionIntensity-value">0.60</span></div></div>
+            </div>
+
+            <div class="control-section">
+                <h3>Colors</h3>
+                <div class="color-group"><label>Abyss Base</label><div class="color-picker-container"><input type="color" id="colorBase" value="#0A0E1A" onchange="updateColor('colorBase', this.value)"><span class="color-value" id="colorBase-value">#0A0E1A</span></div></div>
+                <div class="color-group"><label>Cyan Glow</label><div class="color-picker-container"><input type="color" id="colorCyan" value="#00FFD4" onchange="updateColor('colorCyan', this.value)"><span class="color-value" id="colorCyan-value">#00FFD4</span></div></div>
+                <div class="color-group"><label>Orange Erosion</label><div class="color-picker-container"><input type="color" id="colorOrange" value="#FF6B35" onchange="updateColor('colorOrange', this.value)"><span class="color-value" id="colorOrange-value">#FF6B35</span></div></div>
+            </div>
+
+            <div class="control-section">
+                <h3>Actions</h3>
+                <div class="button-row"><button class="button" onclick="resetParameters()">Reset</button><button class="button secondary" onclick="downloadPNG()">Download PNG</button></div>
+            </div>
+        </div>
+
+        <div class="canvas-area"><div id="canvas-container"></div></div>
+    </div>
+
+    <script>
+        var params = {
+            seed: 42,
+            crackCount: 8,
+            branchDepth: 3,
+            dissolutionSpeed: 0.5,
+            fragmentCount: 40,
+            pulseFrequency: 0.3,
+            erosionIntensity: 0.6,
+            colorBase: '#0A0E1A',
+            colorCyan: '#00FFD4',
+            colorOrange: '#FF6B35'
+        };
+        var defaultParams = JSON.parse(JSON.stringify(params));
+
+        var cracks = [];
+        var fragments = [];
+        var memoryEchoes = [];
+        var dissolutionZones = [];
+        var pulsePhase = 0;
+        var globalTime = 0;
+        var needsRegen = true;
+        var pg;
+
+        function hexToRgb(hex) {
+            var r = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return r ? [parseInt(r[1],16), parseInt(r[2],16), parseInt(r[3],16)] : [0,0,0];
+        }
+
+        function lerpColor(c1, c2, t) {
+            t = Math.max(0, Math.min(1, t));
+            return [
+                c1[0] + (c2[0] - c1[0]) * t,
+                c1[1] + (c2[1] - c1[1]) * t,
+                c1[2] + (c2[2] - c1[2]) * t
+            ];
+        }
+
+        function updateSeed() {
+            params.seed = parseInt(document.getElementById('seed-input').value) || 0;
+            needsRegen = true;
+        }
+        function previousSeed() {
+            params.seed = Math.max(0, params.seed - 1);
+            document.getElementById('seed-input').value = params.seed;
+            needsRegen = true;
+        }
+        function nextSeed() {
+            params.seed++;
+            document.getElementById('seed-input').value = params.seed;
+            needsRegen = true;
+        }
+        function randomSeedAndUpdate() {
+            params.seed = Math.floor(Math.random() * 99999);
+            document.getElementById('seed-input').value = params.seed;
+            needsRegen = true;
+        }
+        function jumpSeed() {
+            var v = prompt('Enter seed number:', params.seed);
+            if (v !== null && !isNaN(parseInt(v))) {
+                params.seed = parseInt(v);
+                document.getElementById('seed-input').value = params.seed;
+                needsRegen = true;
+            }
+        }
+
+        function updateParam(name, value) {
+            var v = parseFloat(value);
+            params[name] = v;
+            var display = document.getElementById(name + '-value');
+            if (display) {
+                var step = document.getElementById(name).step;
+                if (step && step.indexOf('.') !== -1) {
+                    display.textContent = v.toFixed(2);
+                } else {
+                    display.textContent = v;
+                }
+            }
+            if (name === 'crackCount' || name === 'branchDepth') {
+                needsRegen = true;
+            }
+        }
+
+        function updateColor(name, value) {
+            params[name] = value;
+            var display = document.getElementById(name + '-value');
+            if (display) display.textContent = value;
+        }
+
+        function resetParameters() {
+            params = JSON.parse(JSON.stringify(defaultParams));
+            document.getElementById('seed-input').value = params.seed;
+            document.getElementById('crackCount').value = params.crackCount;
+            document.getElementById('crackCount-value').textContent = params.crackCount;
+            document.getElementById('branchDepth').value = params.branchDepth;
+            document.getElementById('branchDepth-value').textContent = params.branchDepth;
+            document.getElementById('dissolutionSpeed').value = params.dissolutionSpeed;
+            document.getElementById('dissolutionSpeed-value').textContent = params.dissolutionSpeed.toFixed(2);
+            document.getElementById('fragmentCount').value = params.fragmentCount;
+            document.getElementById('fragmentCount-value').textContent = params.fragmentCount;
+            document.getElementById('pulseFrequency').value = params.pulseFrequency;
+            document.getElementById('pulseFrequency-value').textContent = params.pulseFrequency.toFixed(2);
+            document.getElementById('erosionIntensity').value = params.erosionIntensity;
+            document.getElementById('erosionIntensity-value').textContent = params.erosionIntensity.toFixed(2);
+            document.getElementById('colorBase').value = params.colorBase;
+            document.getElementById('colorBase-value').textContent = params.colorBase;
+            document.getElementById('colorCyan').value = params.colorCyan;
+            document.getElementById('colorCyan-value').textContent = params.colorCyan;
+            document.getElementById('colorOrange').value = params.colorOrange;
+            document.getElementById('colorOrange-value').textContent = params.colorOrange;
+            needsRegen = true;
+        }
+
+        function downloadPNG() {
+            saveCanvas('abyssal-consummation-seed' + params.seed, 'png');
+        }
+
+        function CrackObj(seed, x, y, angle, depth) {
+            this.seed = seed;
+            this.points = [{x: x, y: y}];
+            this.angle = angle;
+            this.depth = depth;
+            this.speed = 0.6 + Math.random() * 0.8;
+            this.life = 1.0;
+            this.branches = [];
+            this.hasBranched = false;
+            this.branchPoint = 0.3 + Math.random() * 0.4;
+            this.noiseOffX = Math.random() * 1000;
+            this.noiseOffY = Math.random() * 1000;
+            this.growing = true;
+            this.maxSegments = 60 + Math.floor(Math.random() * 80);
+        }
+
+        CrackObj.prototype.update = function(noiseScale, branchDepth, intensity) {
+            if (!this.growing) return;
+            if (this.points.length >= this.maxSegments) {
+                this.growing = false;
+                return;
+            }
+            var last = this.points[this.points.length - 1];
+            var n = noise(last.x * noiseScale + this.noiseOffX, last.y * noiseScale + this.noiseOffY, globalTime * 0.3);
+            var angleVar = (n - 0.5) * Math.PI * 1.2;
+            this.angle += angleVar * 0.15 * intensity;
+            var step = this.speed * 2.5;
+            var nx = last.x + Math.cos(this.angle) * step;
+            var ny = last.y + Math.sin(this.angle) * step;
+            if (nx < -50 || nx > width + 50 || ny < -50 || ny > height + 50) {
+                this.growing = false;
+                return;
+            }
+            this.points.push({x: nx, y: ny});
+            var progress = this.points.length / this.maxSegments;
+            if (!this.hasBranched && progress > this.branchPoint && this.depth < branchDepth) {
+                this.hasBranched = true;
+                var bAngle1 = this.angle + (0.4 + Math.random() * 0.6) * (Math.random() > 0.5 ? 1 : -1);
+                var bAngle2 = this.angle - (0.4 + Math.random() * 0.6) * (Math.random() > 0.5 ? 1 : -1);
+                this.branches.push(new CrackObj(this.seed * 7 + this.branches.length, nx, ny, bAngle1, this.depth + 1));
+                if (Math.random() < 0.5) {
+                    this.branches.push(new CrackObj(this.seed * 13 + this.branches.length, nx, ny, bAngle2, this.depth + 1));
+                }
+            }
+            this.life = 1.0 - progress * 0.5;
+        };
+
+        CrackObj.prototype.draw = function(ctx, cyanRgb, orangeRgb, intensity) {
+            if (this.points.length < 2) return;
+            for (var i = 1; i < this.points.length; i++) {
+                var t = i / this.points.length;
+                var edgeColor = lerpColor(cyanRgb, orangeRgb, t);
+                var alpha = (1.0 - t * 0.6) * this.life * intensity;
+                var glowAlpha = alpha * 0.3;
+                ctx.beginPath();
+                ctx.moveTo(this.points[i-1].x, this.points[i-1].y);
+                ctx.lineTo(this.points[i].x, this.points[i].y);
+                ctx.strokeStyle = 'rgba(' + Math.round(edgeColor[0]) + ',' + Math.round(edgeColor[1]) + ',' + Math.round(edgeColor[2]) + ',' + glowAlpha + ')';
+                ctx.lineWidth = 6 * (1.0 - t * 0.5);
+                ctx.stroke();
+                ctx.strokeStyle = 'rgba(' + Math.round(edgeColor[0]) + ',' + Math.round(edgeColor[1]) + ',' + Math.round(edgeColor[2]) + ',' + alpha + ')';
+                ctx.lineWidth = 2 * (1.0 - t * 0.3);
+                ctx.stroke();
+                ctx.strokeStyle = 'rgba(255,255,255,' + (alpha * 0.4) + ')';
+                ctx.lineWidth = 0.5;
+                ctx.stroke();
+            }
+            for (var b = 0; b < this.branches.length; b++) {
+                this.branches[b].draw(ctx, cyanRgb, orangeRgb, intensity * 0.8);
+            }
+        };
+
+        CrackObj.prototype.getAllPoints = function() {
+            var pts = this.points.slice();
+            for (var b = 0; b < this.branches.length; b++) {
+                pts = pts.concat(this.branches[b].getAllPoints());
+            }
+            return pts;
+        };
+
+        CrackObj.prototype.updateAll = function(noiseScale, branchDepth, intensity) {
+            this.update(noiseScale, branchDepth, intensity);
+            for (var b = 0; b < this.branches.length; b++) {
+                this.branches[b].updateAll(noiseScale, branchDepth, intensity * 0.85);
+            }
+        };
+
+        function Fragment(x, y, type) {
+            this.x = x;
+            this.y = y;
+            this.type = type;
+            this.vx = (Math.random() - 0.5) * 0.8;
+            this.vy = (Math.random() - 0.5) * 0.8;
+            this.rotation = Math.random() * Math.PI * 2;
+            this.rotSpeed = (Math.random() - 0.5) * 0.015;
+            this.size = 4 + Math.random() * 14;
+            this.alpha = 0.6 + Math.random() * 0.4;
+            this.fadeRate = 0.0003 + Math.random() * 0.0008;
+            this.distFromCenter = Math.sqrt(Math.pow(x - width/2, 2) + Math.pow(y - height/2, 2));
+            this.maxDist = Math.sqrt(Math.pow(width/2, 2) + Math.pow(height/2, 2));
+            this.colorT = this.distFromCenter / this.maxDist;
+            this.driftNoise = Math.random() * 1000;
+        }
+
+        Fragment.prototype.update = function(dissolutionSpeed, pulseStrength) {
+            var drift = noise(this.x * 0.003 + this.driftNoise, this.y * 0.003, globalTime * 0.2);
+            this.vx += (drift - 0.5) * 0.05 * dissolutionSpeed;
+            this.vy += (drift - 0.5) * 0.05 * dissolutionSpeed;
+            var dx = width/2 - this.x;
+            var dy = height/2 - this.y;
+            var dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist > 1) {
+                this.vx += (dx / dist) * 0.003 * dissolutionSpeed;
+                this.vy += (dy / dist) * 0.003 * dissolutionSpeed;
+            }
+            this.vx *= 0.99;
+            this.vy *= 0.99;
+            this.x += this.vx * (1 + pulseStrength * 0.5);
+            this.y += this.vy * (1 + pulseStrength * 0.5);
+            this.rotation += this.rotSpeed * (1 + pulseStrength * 0.3);
+            this.alpha -= this.fadeRate * dissolutionSpeed;
+            this.alpha = Math.max(0, this.alpha);
+        };
+
+        Fragment.prototype.draw = function(ctx, cyanRgb, orangeRgb) {
+            if (this.alpha <= 0) return;
+            var col = lerpColor(cyanRgb, orangeRgb, this.colorT);
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.rotate(this.rotation);
+            ctx.globalAlpha = this.alpha;
+            ctx.strokeStyle = 'rgba(' + Math.round(col[0]) + ',' + Math.round(col[1]) + ',' + Math.round(col[2]) + ',' + this.alpha + ')';
+            ctx.fillStyle = 'rgba(' + Math.round(col[0]) + ',' + Math.round(col[1]) + ',' + Math.round(col[2]) + ',' + (this.alpha * 0.15) + ')';
+            ctx.lineWidth = 1;
+            if (this.type === 0) {
+                ctx.beginPath();
+                for (var i = 0; i < 6; i++) {
+                    var a = (Math.PI / 3) * i - Math.PI / 6;
+                    var px = Math.cos(a) * this.size;
+                    var py = Math.sin(a) * this.size;
+                    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+                }
+                ctx.closePath(); ctx.fill(); ctx.stroke();
+            } else if (this.type === 1) {
+                ctx.beginPath();
+                for (var i = 0; i < 3; i++) {
+                    var a = (Math.PI * 2 / 3) * i - Math.PI / 2;
+                    var px = Math.cos(a) * this.size;
+                    var py = Math.sin(a) * this.size;
+                    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+                }
+                ctx.closePath(); ctx.fill(); ctx.stroke();
+            } else {
+                ctx.beginPath();
+                ctx.moveTo(0, -this.size);
+                ctx.lineTo(this.size * 0.6, 0);
+                ctx.lineTo(0, this.size);
+                ctx.lineTo(-this.size * 0.6, 0);
+                ctx.closePath(); ctx.fill(); ctx.stroke();
+            }
+            ctx.globalAlpha = 1;
+            ctx.restore();
+        };
+
+        function MemoryEcho(x, y) {
+            this.x = x;
+            this.y = y;
+            this.type = Math.floor(Math.random() * 3);
+            this.size = 10 + Math.random() * 30;
+            this.phase = Math.random() * Math.PI * 2;
+            this.pulseSpeed = 0.02 + Math.random() * 0.03;
+            this.alpha = 0;
+            this.maxAlpha = 0.08 + Math.random() * 0.12;
+            this.rotation = Math.random() * Math.PI * 2;
+            this.life = 200 + Math.floor(Math.random() * 400);
+            this.age = 0;
+            this.distortion = 0.3 + Math.random() * 0.5;
+        }
+
+        MemoryEcho.prototype.update = function() {
+            this.age++;
+            this.phase += this.pulseSpeed;
+            var lifeFrac = this.age / this.life;
+            var envelope = Math.sin(lifeFrac * Math.PI);
+            this.alpha = this.maxAlpha * envelope * (0.5 + 0.5 * Math.sin(this.phase));
+            return this.age < this.life;
+        };
+
+        MemoryEcho.prototype.draw = function(ctx, cyanRgb) {
+            if (this.alpha <= 0.005) return;
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.rotate(this.rotation);
+            ctx.globalAlpha = this.alpha;
+            var desat = [
+                cyanRgb[0] * 0.4 + 150 * 0.6,
+                cyanRgb[1] * 0.4 + 150 * 0.6,
+                cyanRgb[2] * 0.4 + 150 * 0.6
+            ];
+            ctx.strokeStyle = 'rgba(' + Math.round(desat[0]) + ',' + Math.round(desat[1]) + ',' + Math.round(desat[2]) + ',' + this.alpha + ')';
+            ctx.lineWidth = 0.8;
+            var sides = this.type === 0 ? 6 : (this.type === 1 ? 3 : 4);
+            var distortAngle = this.distortion * Math.sin(this.phase * 0.7);
+            ctx.beginPath();
+            for (var i = 0; i < sides; i++) {
+                var a = (Math.PI * 2 / sides) * i + distortAngle;
+                var r = this.size * (0.8 + 0.2 * Math.sin(this.phase + i));
+                var px = Math.cos(a) * r;
+                var py = Math.sin(a) * r;
+                if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+            ctx.restore();
+        };
+
+        function DissolutionZone(x, y, radius) {
+            this.x = x;
+            this.y = y;
+            this.radius = radius;
+            this.maxRadius = radius * (2 + Math.random() * 3);
+            this.noiseOff = Math.random() * 1000;
+            this.alpha = 0;
+            this.growSpeed = 0.15 + Math.random() * 0.3;
+        }
+
+        DissolutionZone.prototype.update = function(dissolutionSpeed, pulseStrength) {
+            if (this.radius < this.maxRadius) {
+                this.radius += this.growSpeed * dissolutionSpeed * (1 + pulseStrength * 0.5);
+            }
+            this.alpha = Math.min(0.85, this.radius / this.maxRadius * 0.85);
+        };
+
+        DissolutionZone.prototype.draw = function(ctx, baseRgb) {
+            if (this.alpha <= 0) return;
+            var steps = 12;
+            for (var i = steps; i >= 0; i--) {
+                var t = i / steps;
+                var r = this.radius * t;
+                var n = noise(this.x * 0.01 + this.noiseOff, this.y * 0.01, globalTime * 0.5 + t * 2);
+                var alphaMod = this.alpha * (1 - t) * n;
+                alphaMod = Math.max(0, alphaMod);
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, Math.max(1, r), 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(' + Math.round(baseRgb[0] * 0.3) + ',' + Math.round(baseRgb[1] * 0.3) + ',' + Math.round(baseRgb[2] * 0.3) + ',' + alphaMod + ')';
+                ctx.fill();
+            }
+            var voidNoise = noise(this.x * 0.005 + this.noiseOff, this.y * 0.005, globalTime * 0.3);
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, Math.max(1, this.radius * 0.3), 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0,0,0,' + (this.alpha * 0.6 * voidNoise) + ')';
+            ctx.fill();
+        };
+
+        function generateSystem() {
+            randomSeed(params.seed);
+            noiseSeed(params.seed);
+            cracks = [];
+            fragments = [];
+            memoryEchoes = [];
+            dissolutionZones = [];
+            globalTime = 0;
+            pulsePhase = 0;
+
+            var cx = width / 2;
+            var cy = height / 2;
+
+            for (var i = 0; i < params.crackCount; i++) {
+                var angle = (Math.PI * 2 / params.crackCount) * i + (random() - 0.5) * 0.8;
+                var dist = 50 + random() * 200;
+                var sx = cx + Math.cos(angle) * dist;
+                var sy = cy + Math.sin(angle) * dist;
+                var startAngle = angle + (random() - 0.5) * 1.5;
+                cracks.push(new CrackObj(params.seed * 31 + i, sx, sy, startAngle, 0));
+            }
+
+            for (var i = 0; i < params.fragmentCount; i++) {
+                var angle = random() * Math.PI * 2;
+                var dist = 80 + random() * 350;
+                var fx = cx + Math.cos(angle) * dist;
+                var fy = cy + Math.sin(angle) * dist;
+                fragments.push(new Fragment(fx, fy, Math.floor(random() * 3)));
+            }
+
+            needsRegen = false;
+        }
+
+        function setup() {
+            var canvas = createCanvas(1200, 800);
+            canvas.parent('canvas-container');
+            pg = createGraphics(1200, 800);
+            pg.pixelDensity(1);
+            generateSystem();
+        }
+
+        function draw() {
+            if (needsRegen) {
+                generateSystem();
+                pg.clear();
+            }
+
+            var baseRgb = hexToRgb(params.colorBase);
+            var cyanRgb = hexToRgb(params.colorCyan);
+            var orangeRgb = hexToRgb(params.colorOrange);
+
+            globalTime += 0.016;
+            pulsePhase += params.pulseFrequency * 0.016 * Math.PI * 2;
+            var pulseStrength = Math.pow(Math.max(0, Math.sin(pulsePhase)), 3) * params.erosionIntensity;
+
+            var noiseScale = 0.004;
+
+            for (var i = 0; i < cracks.length; i++) {
+                cracks[i].updateAll(noiseScale, params.branchDepth, params.erosionIntensity * (1 + pulseStrength * 0.5));
+            }
+
+            var allCrackPoints = [];
+            for (var i = 0; i < cracks.length; i++) {
+                allCrackPoints = allCrackPoints.concat(cracks[i].getAllPoints());
+            }
+
+            if (allCrackPoints.length > 10 && dissolutionZones.length < 30) {
+                for (var attempts = 0; attempts < 3; attempts++) {
+                    var idx = Math.floor(random(allCrackPoints.length));
+                    var pt = allCrackPoints[idx];
+                    var tooClose = false;
+                    for (var d = 0; d < dissolutionZones.length; d++) {
+                        var ddx = dissolutionZones[d].x - pt.x;
+                        var ddy = dissolutionZones[d].y - pt.y;
+                        if (ddx*ddx + ddy*ddy < 2500) { tooClose = true; break; }
+                    }
+                    if (!tooClose) {
+                        dissolutionZones.push(new DissolutionZone(pt.x, pt.y, 5 + random(15)));
+                        break;
+                    }
+                }
+            }
+
+            for (var i = dissolutionZones.length - 1; i >= 0; i--) {
+                dissolutionZones[i].update(params.dissolutionSpeed, pulseStrength);
+            }
+
+            while (fragments.length < params.fragmentCount) {
+                var angle = random(Math.PI * 2);
+                var dist = 80 + random(350);
+                fragments.push(new Fragment(width/2 + Math.cos(angle)*dist, height/2 + Math.sin(angle)*dist, Math.floor(random(3))));
+            }
+            while (fragments.length > params.fragmentCount) {
+                fragments.pop();
+            }
+
+            for (var i = fragments.length - 1; i >= 0; i--) {
+                fragments[i].update(params.dissolutionSpeed, pulseStrength);
+                if (fragments[i].alpha <= 0) {
+                    var angle = random(Math.PI * 2);
+                    var dist = 80 + random(350);
+                    fragments[i] = new Fragment(width/2 + Math.cos(angle)*dist, height/2 + Math.sin(angle)*dist, Math.floor(random(3)));
+                }
+            }
+
+            if (random() < 0.03 * params.erosionIntensity && memoryEchoes.length < 20) {
+                if (dissolutionZones.length > 0) {
+                    var dz = dissolutionZones[Math.floor(random(dissolutionZones.length))];
+                    var ea = random(Math.PI * 2);
+                    var ed = random(dz.radius * 0.8);
+                    memoryEchoes.push(new MemoryEcho(dz.x + Math.cos(ea)*ed, dz.y + Math.sin(ea)*ed));
+                }
+            }
+
+            for (var i = memoryEchoes.length - 1; i >= 0; i--) {
+                if (!memoryEchoes[i].update()) {
+                    memoryEchoes.splice(i, 1);
+                }
+            }
+
+            background(baseRgb[0], baseRgb[1], baseRgb[2]);
+
+            var breathe = 0.02 * Math.sin(globalTime * 0.8);
+
+            pg.clear();
+            var pgCtx = pg.drawingContext;
+
+            for (var i = 0; i < dissolutionZones.length; i++) {
+                dissolutionZones[i].draw(pgCtx, baseRgb);
+            }
+
+            for (var i = 0; i < memoryEchoes.length; i++) {
+                memoryEchoes[i].draw(pgCtx, cyanRgb);
+            }
+
+            for (var i = 0; i < cracks.length; i++) {
+                cracks[i].draw(pgCtx, cyanRgb, orangeRgb, params.erosionIntensity);
+            }
+
+            for (var i = 0; i < fragments.length; i++) {
+                fragments[i].draw(pgCtx, cyanRgb, orangeRgb);
+            }
+
+            if (pulseStrength > 0.05) {
+                var pulseRadius = (pulsePhase % (Math.PI * 2)) / (Math.PI * 2) * Math.max(width, height);
+                var grad = pgCtx.createRadialGradient(width/2, height/2, Math.max(0, pulseRadius - 40), width/2, height/2, pulseRadius + 40);
+                grad.addColorStop(0, 'rgba(' + cyanRgb[0] + ',' + cyanRgb[1] + ',' + cyanRgb[2] + ',0)');
+                grad.addColorStop(0.5, 'rgba(' + cyanRgb[0] + ',' + cyanRgb[1] + ',' + cyanRgb[2] + ',' + (pulseStrength * 0.08) + ')');
+                grad.addColorStop(1, 'rgba(' + cyanRgb[0] + ',' + cyanRgb[1] + ',' + cyanRgb[2] + ',0)');
+                pgCtx.fillStyle = grad;
+                pgCtx.fillRect(0, 0, width, height);
+            }
+
+            var centerGrad = pgCtx.createRadialGradient(width/2, height/2, 0, width/2, height/2, 300);
+            centerGrad.addColorStop(0, 'rgba(' + orangeRgb[0] + ',' + orangeRgb[1] + ',' + orangeRgb[2] + ',' + (0.03 + breathe + pulseStrength * 0.04) + ')');
+            centerGrad.addColorStop(0.5, 'rgba(' + cyanRgb[0] + ',' + cyanRgb[1] + ',' + cyanRgb[2] + ',' + (0.01 + breathe * 0.5) + ')');
+            centerGrad.addColorStop(1, 'rgba(0,0,0,0)');
+            pgCtx.fillStyle = centerGrad;
+            pgCtx.fillRect(0, 0, width, height);
+
+            image(pg, 0, 0);
+
+            noFill();
+            stroke(cyanRgb[0], cyanRgb[1], cyanRgb[2], 15 + breathe * 200);
+            strokeWeight(0.5);
+            for (var ring = 0; ring < 3; ring++) {
+                var rr = 100 + ring * 120 + Math.sin(globalTime * 0.3 + ring) * 15;
+                arc(width/2, height/2, rr*2, rr*2, globalTime * 0.1 + ring, globalTime * 0.1 + ring + Math.PI * 0.8);
+            }
+        }
+    </script>
+</body>
+</html>

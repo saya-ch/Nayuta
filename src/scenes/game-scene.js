@@ -99,6 +99,12 @@ export class GameScene extends Scene {
     this.echoWaves = [];
     this.echoParticles = [];
     this.vortexTime = 0;
+    this.secretAreas = [];
+    this.activeSecretArea = null;
+    this.secretRevealAlpha = 0;
+    this.secretRevealText = '';
+    this.secretRevealTimer = 0;
+    this.secretParticles = [];
   }
 
   init() {
@@ -191,6 +197,23 @@ export class GameScene extends Scene {
 
     this._initWeather(level);
     this._initRiftEffects(level);
+
+    this.secretAreas = [];
+    for (const sa of (level.secretAreas || [])) {
+      const discovered = saveSystem.isSecretDiscovered(sa.id);
+      this.secretAreas.push({
+        ...sa,
+        discovered,
+        revealProgress: discovered ? 1 : 0,
+        glowPulse: Math.random() * Math.PI * 2,
+        particles: [],
+      });
+    }
+    this.activeSecretArea = null;
+    this.secretRevealAlpha = 0;
+    this.secretRevealText = '';
+    this.secretRevealTimer = 0;
+    this.secretParticles = [];
 
     this.player.x = level.playerStart.x;
     this.player.y = level.playerStart.y;
@@ -295,6 +318,8 @@ export class GameScene extends Scene {
     this.weatherLightning = [];
     this.echoWaves = [];
     this.echoParticles = [];
+    this.secretAreas = [];
+    this.secretParticles = [];
   }
 
   _generateParticles(level) {
@@ -496,6 +521,16 @@ export class GameScene extends Scene {
       }
     }
 
+    for (const sa of this.secretAreas) {
+      if (sa.discovered && sa.platforms) {
+        for (const plat of sa.platforms) {
+          if (this._checkPlatformCollision(plat, playerW, playerH)) {
+            this._resolvePlatformCollision(plat, playerW, playerH);
+          }
+        }
+      }
+    }
+
     for (const door of this.puzzleManager.getCollidableElements()) {
       const bounds = door.getBounds();
       const plat = { x: bounds.x, y: bounds.y, w: bounds.width, h: bounds.height };
@@ -567,6 +602,8 @@ export class GameScene extends Scene {
         this._checkAchievements();
       }
     }
+
+    this._updateSecretAreas(dt);
 
     const lw = this.currentLevel ? (this.currentLevel.width || 1280) : 1280;
     const lh = this.currentLevel ? (this.currentLevel.height || 720) : 720;
@@ -952,6 +989,7 @@ export class GameScene extends Scene {
     this._renderHazards(ctx, w, h);
     this.narrativeSystem.renderFragments(ctx);
     this.puzzleManager.render(ctx);
+    this._renderSecretAreas(ctx, w, h);
     this._renderParticles(ctx, w, h, level);
     this._renderWeather(ctx, w, h, level);
     this._renderPlayerTrail(ctx);
@@ -1804,6 +1842,15 @@ export class GameScene extends Scene {
     ctx.font = '300 12px "Segoe UI", system-ui, sans-serif';
     ctx.fillStyle = 'rgba(107, 107, 141, 0.6)';
     ctx.fillText(level.name, w - 30, this.deathCount > 0 ? 64 : 48);
+
+    const discoveredSecrets = this.secretAreas.filter(s => s.discovered).length;
+    const totalSecrets = this.secretAreas.length;
+    if (totalSecrets > 0) {
+      const secretY = this.deathCount > 0 ? 80 : 64;
+      ctx.font = '300 11px "Segoe UI", system-ui, sans-serif';
+      ctx.fillStyle = discoveredSecrets > 0 ? 'rgba(0, 255, 212, 0.5)' : 'rgba(107, 107, 141, 0.35)';
+      ctx.fillText(`隐秘记忆 ${discoveredSecrets}/${totalSecrets}`, w - 30, secretY);
+    }
 
     this._renderMinimap(ctx, w, h, level);
 
@@ -3000,6 +3047,18 @@ export class GameScene extends Scene {
       ctx.fill();
     }
 
+    for (const sa of this.secretAreas) {
+      if (!sa.discovered) {
+        const sx = mapX + sa.entryX * scaleX;
+        const sy = mapY + sa.entryY * scaleY;
+        const pulse = Math.sin(this.time * 0.003) * 0.3 + 0.7;
+        ctx.fillStyle = `rgba(0, 255, 212, ${0.25 * pulse})`;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
     const viewX = mapX + (-this.camera.x) * scaleX;
     const viewY = mapY + (-this.camera.y) * scaleY;
     const viewW = GAME_WIDTH * scaleX;
@@ -3252,6 +3311,7 @@ export class GameScene extends Scene {
       endingsSeen: data.endingsSeen || [],
       completedGame: data.levelProgress[3] && data.levelProgress[3].completed,
       discoveredFragments: (data.discoveredFragments || []).length,
+      discoveredSecrets: (data.discoveredSecrets || []).length,
     };
     achievementSystem.checkAll(stats);
   }
@@ -3424,5 +3484,187 @@ export class GameScene extends Scene {
     ctx.stroke();
 
     ctx.restore();
+  }
+
+  _updateSecretAreas(dt) {
+    for (const sa of this.secretAreas) {
+      sa.glowPulse += dt * 0.003;
+
+      if (!sa.discovered) {
+        const dx = this.player.x - sa.entryX;
+        const dy = (this.player.y - 24) - sa.entryY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < sa.triggerRadius) {
+          sa.discovered = true;
+          sa.revealProgress = 0;
+          saveSystem.discoverSecret(sa.id);
+          this.activeSecretArea = sa;
+          this.secretRevealAlpha = 0;
+          this.secretRevealText = sa.revealText || '发现隐藏记忆';
+          this.secretRevealTimer = 0;
+
+          if (this.audio) this.audio.playSFX('anchorCollect');
+
+          for (const anchorDef of sa.anchors) {
+            this.anchors.push({
+              x: anchorDef.x,
+              y: anchorDef.y,
+              collected: false,
+              pulse: Math.random() * Math.PI * 2,
+              size: 12,
+            });
+          }
+
+          if (sa.narrativeFragment) {
+            const frag = sa.narrativeFragment;
+            this.narrativeSystem.fragments.push({
+              ...frag,
+              discovered: false,
+              pulse: Math.random() * Math.PI * 2,
+              revealAlpha: 0,
+            });
+          }
+
+          for (let i = 0; i < 20; i++) {
+            const angle = (i / 20) * Math.PI * 2;
+            this.secretParticles.push({
+              x: sa.entryX,
+              y: sa.entryY,
+              vx: Math.cos(angle) * (30 + Math.random() * 40),
+              vy: Math.sin(angle) * (30 + Math.random() * 40),
+              alpha: 1,
+              age: 0,
+              duration: 1200 + Math.random() * 600,
+              size: 2 + Math.random() * 3,
+              isCyan: Math.random() > 0.3,
+            });
+          }
+        }
+      }
+
+      if (sa.discovered && sa.revealProgress < 1) {
+        sa.revealProgress = Math.min(1, sa.revealProgress + dt * 0.002);
+      }
+    }
+
+    if (this.activeSecretArea) {
+      this.secretRevealTimer += dt;
+      if (this.secretRevealTimer < 500) {
+        this.secretRevealAlpha = this.secretRevealTimer / 500;
+      } else if (this.secretRevealTimer < 2000) {
+        this.secretRevealAlpha = 1;
+      } else if (this.secretRevealTimer < 2800) {
+        this.secretRevealAlpha = 1 - (this.secretRevealTimer - 2000) / 800;
+      } else {
+        this.secretRevealAlpha = 0;
+        this.activeSecretArea = null;
+      }
+    }
+
+    for (let i = this.secretParticles.length - 1; i >= 0; i--) {
+      const p = this.secretParticles[i];
+      p.age += dt;
+      p.alpha = Math.max(0, 1 - p.age / p.duration);
+      p.x += p.vx * (dt / 1000);
+      p.y += p.vy * (dt / 1000);
+      p.vx *= 0.98;
+      p.vy *= 0.98;
+      if (p.alpha <= 0) {
+        this.secretParticles[i] = this.secretParticles[this.secretParticles.length - 1];
+        this.secretParticles.pop();
+      }
+    }
+  }
+
+  _renderSecretAreas(ctx, w, h) {
+    for (const sa of this.secretAreas) {
+      const pulse = Math.sin(sa.glowPulse) * 0.3 + 0.7;
+
+      if (!sa.discovered) {
+        const glow = ctx.createRadialGradient(
+          sa.entryX, sa.entryY, 0,
+          sa.entryX, sa.entryY, sa.triggerRadius * 1.5
+        );
+        glow.addColorStop(0, `rgba(0, 255, 212, ${0.06 * pulse})`);
+        glow.addColorStop(0.5, `rgba(0, 255, 212, ${0.02 * pulse})`);
+        glow.addColorStop(1, 'rgba(0, 255, 212, 0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(sa.entryX, sa.entryY, sa.triggerRadius * 1.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        const runeAlpha = 0.15 + pulse * 0.1;
+        ctx.strokeStyle = `rgba(0, 255, 212, ${runeAlpha})`;
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        const runeSize = 8 + pulse * 3;
+        for (let i = 0; i < 6; i++) {
+          const a = (i / 6) * Math.PI * 2 - Math.PI / 2;
+          const px = sa.entryX + Math.cos(a) * runeSize;
+          const py = sa.entryY + Math.sin(a) * runeSize;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.stroke();
+      } else {
+        const revealAlpha = sa.revealProgress;
+
+        if (sa.platforms) {
+          for (const plat of sa.platforms) {
+            ctx.fillStyle = `rgba(26, 39, 68, ${0.7 * revealAlpha})`;
+            ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+            ctx.strokeStyle = `rgba(0, 255, 212, ${0.15 * revealAlpha * pulse})`;
+            ctx.lineWidth = 1;
+            ctx.strokeRect(plat.x, plat.y, plat.w, plat.h);
+          }
+        }
+
+        const areaGlow = ctx.createRadialGradient(
+          sa.x + sa.w / 2, sa.y + sa.h / 2, 0,
+          sa.x + sa.w / 2, sa.y + sa.h / 2, Math.max(sa.w, sa.h)
+        );
+        areaGlow.addColorStop(0, `rgba(0, 255, 212, ${0.04 * revealAlpha * pulse})`);
+        areaGlow.addColorStop(1, 'rgba(0, 255, 212, 0)');
+        ctx.fillStyle = areaGlow;
+        ctx.fillRect(sa.x, sa.y, sa.w, sa.h);
+      }
+    }
+
+    for (const p of this.secretParticles) {
+      if (p.alpha <= 0.01) continue;
+      ctx.save();
+      ctx.globalAlpha = p.alpha;
+      const color = p.isCyan ? '0, 255, 212' : '232, 230, 240';
+      ctx.fillStyle = `rgba(${color}, ${p.alpha})`;
+      ctx.shadowColor = p.isCyan ? '#00FFD4' : '#E8E6F0';
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    }
+
+    if (this.secretRevealAlpha > 0.01 && this.activeSecretArea) {
+      ctx.save();
+      ctx.globalAlpha = this.secretRevealAlpha;
+
+      const sa = this.activeSecretArea;
+      const cx = sa.entryX;
+      const cy = sa.entryY - 40;
+
+      ctx.font = '300 14px "Segoe UI", system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(0, 255, 212, 0.9)';
+      ctx.shadowColor = '#00FFD4';
+      ctx.shadowBlur = 15;
+      ctx.fillText(this.secretRevealText, cx, cy);
+      ctx.shadowBlur = 0;
+
+      ctx.restore();
+    }
   }
 }

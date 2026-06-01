@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nayuta Reborn — Generative Concept Art</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #050810;
+    color: #c8cdd8;
+    font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    display: flex;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  #sidebar {
+    width: 300px;
+    min-width: 300px;
+    background: #0c1020;
+    border-right: 1px solid #1a2040;
+    padding: 20px 16px;
+    overflow-y: auto;
+    max-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  #sidebar h1 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #00FFD4;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border-bottom: 1px solid #1a2040;
+    padding-bottom: 10px;
+  }
+  #sidebar h1 span {
+    display: block;
+    font-size: 11px;
+    font-weight: 400;
+    color: #6a7090;
+    letter-spacing: 1px;
+    margin-top: 4px;
+  }
+  .ctrl-group {
+    background: #0f1428;
+    border: 1px solid #1a2040;
+    border-radius: 6px;
+    padding: 10px 12px;
+  }
+  .ctrl-group label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: #7a82a0;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+  .ctrl-group .val {
+    float: right;
+    color: #00FFD4;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+  }
+  input[type="range"] {
+    width: 100%;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    background: #1a2040;
+    border-radius: 2px;
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #00FFD4;
+    cursor: pointer;
+    box-shadow: 0 0 6px rgba(0,255,212,0.4);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #00FFD4;
+    cursor: pointer;
+    border: none;
+  }
+  .color-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .color-row:last-child { margin-bottom: 0; }
+  .color-row span {
+    font-size: 11px;
+    color: #7a82a0;
+    min-width: 100px;
+  }
+  input[type="color"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 32px;
+    height: 24px;
+    border: 1px solid #1a2040;
+    border-radius: 4px;
+    background: transparent;
+    cursor: pointer;
+    padding: 0;
+  }
+  input[type="color"]::-webkit-color-swatch-wrapper { padding: 2px; }
+  input[type="color"]::-webkit-color-swatch { border-radius: 2px; border: none; }
+  .seed-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+  }
+  .seed-display {
+    flex: 1;
+    background: #0a0e1a;
+    border: 1px solid #1a2040;
+    border-radius: 4px;
+    padding: 5px 8px;
+    color: #00FFD4;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    text-align: center;
+  }
+  .btn {
+    background: #141a30;
+    border: 1px solid #1a2040;
+    color: #c8cdd8;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+  }
+  .btn:hover {
+    background: #1a2040;
+    border-color: #00FFD4;
+    color: #00FFD4;
+  }
+  .btn-accent {
+    background: #00FFD4;
+    color: #0a0e1a;
+    font-weight: 600;
+    border-color: #00FFD4;
+  }
+  .btn-accent:hover {
+    background: #33ffe0;
+    color: #0a0e1a;
+  }
+  .btn-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .btn-row .btn { flex: 1; text-align: center; }
+  #canvas-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    min-height: 100vh;
+  }
+  canvas { border-radius: 4px; box-shadow: 0 0 40px rgba(0,255,212,0.05); }
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: #4a5280;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <h1>Nayuta Reborn<span>Generative Concept Art</span></h1>
+
+  <div class="section-title">Parameters</div>
+
+  <div class="ctrl-group">
+    <label>Particle Density <span class="val" id="v-density">2000</span></label>
+    <input type="range" id="p-density" min="500" max="5000" step="100" value="2000">
+  </div>
+
+  <div class="ctrl-group">
+    <label>Cloak Flow <span class="val" id="v-flow">0.80</span></label>
+    <input type="range" id="p-flow" min="0.1" max="2.0" step="0.05" value="0.8">
+  </div>
+
+  <div class="ctrl-group">
+    <label>Glow Intensity <span class="val" id="v-glow">0.70</span></label>
+    <input type="range" id="p-glow" min="0.1" max="1.0" step="0.05" value="0.7">
+  </div>
+
+  <div class="ctrl-group">
+    <label>Fragment Count <span class="val" id="v-frag">15</span></label>
+    <input type="range" id="p-frag" min="5" max="30" step="1" value="15">
+  </div>
+
+  <div class="ctrl-group">
+    <label>Erosion Level <span class="val" id="v-erosion">0.30</span></label>
+    <input type="range" id="p-erosion" min="0" max="1.0" step="0.05" value="0.3">
+  </div>
+
+  <div class="ctrl-group">
+    <label>Cosmic Presence <span class="val" id="v-cosmic">0.40</span></label>
+    <input type="range" id="p-cosmic" min="0" max="1.0" step="0.05" value="0.4">
+  </div>
+
+  <div class="section-title">Colors</div>
+
+  <div class="ctrl-group">
+    <div class="color-row">
+      <span>Abyss Background</span>
+      <input type="color" id="c-bg" value="#0A0E1A">
+    </div>
+    <div class="color-row">
+      <span>Bioluminescent</span>
+      <input type="color" id="c-bio" value="#00FFD4">
+    </div>
+    <div class="color-row">
+      <span>Erosion Glow</span>
+      <input type="color" id="c-erosion" value="#FF6B35">
+    </div>
+  </div>
+
+  <div class="section-title">Seed</div>
+
+  <div class="ctrl-group">
+    <div class="seed-row">
+      <div class="seed-display" id="seed-display">42</div>
+    </div>
+    <div class="btn-row">
+      <button class="btn" id="btn-prev">Prev</button>
+      <button class="btn" id="btn-next">Next</button>
+      <button class="btn" id="btn-rand">Random</button>
+      <button class="btn" id="btn-jump">Jump</button>
+    </div>
+  </div>
+
+  <div class="section-title">Actions</div>
+
+  <div class="ctrl-group">
+    <div class="btn-row">
+      <button class="btn" id="btn-reset">Reset</button>
+      <button class="btn btn-accent" id="btn-download">Download PNG</button>
+    </div>
+  </div>
+</div>
+
+<div id="canvas-wrap"></div>
+
+<script>
+(function() {
+  const CW = 800, CH = 1000;
+
+  let params = {
+    density: 2000,
+    flow: 0.8,
+    glow: 0.7,
+    fragments: 15,
+    erosion: 0.3,
+    cosmic: 0.4,
+    bgColor: '#0A0E1A',
+    bioColor: '#00FFD4',
+    erosionColor: '#FF6B35',
+    seed: 42
+  };
+
+  let particles = [];
+  let cloakParticles = [];
+  let bioPoints = [];
+  let memFragments = [];
+  let stars = [];
+  let nebulaBlobs = [];
+  let erodedParticles = [];
+  let rng;
+
+  function mulberry32(a) {
+    return function() {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      var t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    }
+  }
+
+  function hexToRgb(hex) {
+    var r = parseInt(hex.slice(1,3), 16);
+    var g = parseInt(hex.slice(3,5), 16);
+    var b = parseInt(hex.slice(5,7), 16);
+    return { r, g, b };
+  }
+
+  function initScene() {
+    rng = mulberry32(params.seed);
+    noiseSeed(params.seed);
+    randomSeed(params.seed);
+
+    particles = [];
+    cloakParticles = [];
+    bioPoints = [];
+    memFragments = [];
+    stars = [];
+    nebulaBlobs = [];
+    erodedParticles = [];
+
+    var cx = CW / 2;
+    var headY = 220;
+    var shoulderY = 310;
+    var waistY = 520;
+    var hemY = 850;
+
+    for (var i = 0; i < params.density; i++) {
+      var t = rng();
+      var px, py, zone;
+
+      if (t < 0.08) {
+        zone = 'head';
+        var angle = rng() * TWO_PI;
+        var r = rng() * 35;
+        px = cx + cos(angle) * r * 0.9;
+        py = headY + sin(angle) * r;
+      } else if (t < 0.12) {
+        zone = 'crown';
+        var cAngle = rng() * PI - PI / 2;
+        var cR = 40 + rng() * 20;
+        px = cx + cos(cAngle) * cR * 0.6;
+        py = headY - 30 - sin(cAngle) * cR * 0.5;
+      } else if (t < 0.22) {
+        zone = 'torso';
+        var ty = shoulderY + rng() * (waistY - shoulderY);
+        var tWidth = lerp(55, 40, (ty - shoulderY) / (waistY - shoulderY));
+        px = cx + (rng() - 0.5) * tWidth * 2;
+        py = ty;
+      } else if (t < 0.28) {
+        zone = 'arm_l';
+        var aProgress = rng();
+        var ay = shoulderY + aProgress * 180;
+        var aOffset = -55 - aProgress * 80;
+        px = cx + aOffset + (rng() - 0.5) * 20;
+        py = ay + (rng() - 0.5) * 15;
+      } else if (t < 0.34) {
+        zone = 'arm_r';
+        var aProgress2 = rng();
+        var ay2 = shoulderY + aProgress2 * 180;
+        var aOffset2 = 55 + aProgress2 * 80;
+        px = cx + aOffset2 + (rng() - 0.5) * 20;
+        py = ay2 + (rng() - 0.5) * 15;
+      } else {
+        zone = 'cloak';
+        var cProgress = rng();
+        var cy = shoulderY + cProgress * (hemY - shoulderY);
+        var baseW = lerp(60, 220, pow(cProgress, 0.7));
+        var side = rng() > 0.5 ? 1 : -1;
+        var distFromCenter = rng();
+        px = cx + side * distFromCenter * baseW;
+        py = cy + (rng() - 0.5) * 20;
+      }
+
+      particles.push({
+        baseX: px,
+        baseY: py,
+        x: px,
+        y: py,
+        zone: zone,
+        size: rng() * 2.5 + 0.5,
+        alpha: rng() * 0.5 + 0.3,
+        noiseOffX: rng() * 1000,
+        noiseOffY: rng() * 1000,
+        drift: rng() * 0.3 + 0.1,
+        phase: rng() * TWO_PI
+      });
+    }
+
+    var bioZones = ['cloak_edge', 'crown', 'arm_edge'];
+    var bioCount = Math.floor(params.density * 0.04);
+    for (var i = 0; i < bioCount; i++) {
+      var bz = bioZones[Math.floor(rng() * bioZones.length)];
+      var bx, by;
+      if (bz === 'cloak_edge') {
+        var bp = rng();
+        var bcy = shoulderY + bp * (hemY - shoulderY);
+        var bw = lerp(60, 220, pow(bp, 0.7));
+        bx = cx + (rng() > 0.5 ? 1 : -1) * bw * (0.8 + rng() * 0.3);
+        by = bcy;
+      } else if (bz === 'crown') {
+        bx = cx + (rng() - 0.5) * 60;
+        by = headY - 30 - rng() * 40;
+      } else {
+        var as = rng() > 0.5 ? 1 : -1;
+        var ap = rng();
+        bx = cx + as * (55 + ap * 80) + (rng() - 0.5) * 10;
+        by = shoulderY + ap * 180;
+      }
+      bioPoints.push({
+        x: bx, y: by,
+        baseX: bx, baseY: by,
+        size: rng() * 3 + 1.5,
+        phase: rng() * TWO_PI,
+        speed: rng() * 0.02 + 0.01
+      });
+    }
+
+    for (var i = 0; i < params.fragments; i++) {
+      var fAngle = rng() * TWO_PI;
+      var fDist = 120 + rng() * 180;
+      memFragments.push({
+        cx: cx,
+        cy: 450,
+        angle: fAngle,
+        dist: fDist,
+        speed: (rng() * 0.003 + 0.001) * (rng() > 0.5 ? 1 : -1),
+        size: rng() * 6 + 3,
+        phase: rng() * TWO_PI,
+        pulseSpeed: rng() * 0.02 + 0.008,
+        type: rng() > 0.5 ? 'diamond' : 'triangle'
+      });
+    }
+
+    for (var i = 0; i < 300; i++) {
+      stars.push({
+        x: rng() * CW,
+        y: rng() * CH,
+        size: rng() * 1.8 + 0.3,
+        alpha: rng() * 0.6 + 0.1,
+        twinklePhase: rng() * TWO_PI,
+        twinkleSpeed: rng() * 0.03 + 0.005,
+        layer: Math.floor(rng() * 3)
+      });
+    }
+
+    for (var i = 0; i < 8; i++) {
+      nebulaBlobs.push({
+        x: rng() * CW,
+        y: rng() * CH,
+        rx: 80 + rng() * 200,
+        ry: 60 + rng() * 150,
+        alpha: rng() * 0.03 + 0.01,
+        hue: rng() > 0.5 ? 0 : 1,
+        phase: rng() * TWO_PI
+      });
+    }
+  }
+
+  var sketch = function(p) {
+    var t = 0;
+
+    p.setup = function() {
+      var cnv = p.createCanvas(CW, CH);
+      cnv.parent('canvas-wrap');
+      p.pixelDensity(1);
+      initScene();
+    };
+
+    p.draw = function() {
+      t += 0.016;
+      var bg = hexToRgb(params.bgColor);
+      p.background(bg.r, bg.g, bg.b);
+
+      drawBackground(p);
+      drawCosmicEye(p);
+      drawNebula(p);
+      drawStars(p);
+      drawCharacter(p);
+      drawBioPoints(p);
+      drawErosion(p);
+      drawMemoryFragments(p);
+      drawEyeGlow(p);
+    };
+
+    function drawBackground(p) {
+      var bg = hexToRgb(params.bgColor);
+      p.noStroke();
+      for (var i = 0; i < 5; i++) {
+        var grad = 20 + i * 15;
+        p.fill(bg.r + grad, bg.g + grad, bg.b + grad * 2, 8);
+        p.ellipse(CW / 2, CH * 0.45, 500 + i * 100, 700 + i * 100);
+      }
+    }
+
+    function drawCosmicEye(p) {
+      if (params.cosmic <= 0) return;
+      var cx = CW / 2;
+      var cy = CH * 0.4;
+      var eyeAlpha = params.cosmic * 25;
+      var bio = hexToRgb(params.bioColor);
+
+      p.noStroke();
+      p.push();
+      p.translate(cx, cy);
+
+      for (var layer = 3; layer >= 0; layer--) {
+        var s = 1 + layer * 0.3;
+        var a = eyeAlpha * (1 - layer * 0.2);
+        p.fill(bio.r, bio.g, bio.b, a * 0.3);
+        p.ellipse(0, 0, 300 * s, 180 * s);
+      }
+
+      p.fill(bio.r, bio.g, bio.b, eyeAlpha * 0.6);
+      p.ellipse(0, 0, 280, 160);
+
+      p.fill(bg.r + 5, bg.g + 5, bg.b + 15, eyeAlpha * 2);
+      p.ellipse(0, 0, 220, 120);
+
+      var pupilPulse = sin(t * 0.5) * 0.1 + 0.9;
+      p.fill(bio.r, bio.g, bio.b, eyeAlpha * 1.5);
+      p.ellipse(0, 0, 60 * pupilPulse, 80 * pupilPulse);
+
+      p.fill(bg.r, bg.g, bg.b, eyeAlpha * 2);
+      p.ellipse(0, 0, 25 * pupilPulse, 50 * pupilPulse);
+
+      p.fill(bio.r, bio.g, bio.b, eyeAlpha * 0.8);
+      p.ellipse(0, 0, 10 * pupilPulse, 20 * pupilPulse);
+
+      p.pop();
+    }
+
+    function drawNebula(p) {
+      p.noStroke();
+      var bg = hexToRgb(params.bgColor);
+      var bio = hexToRgb(params.bioColor);
+      for (var i = 0; i < nebulaBlobs.length; i++) {
+        var nb = nebulaBlobs[i];
+        var nx = nb.x + sin(t * 0.1 + nb.phase) * 20;
+        var ny = nb.y + cos(t * 0.08 + nb.phase) * 15;
+        var col = nb.hue === 0 ? bio : { r: 80, g: 40, b: 120 };
+        for (var r = 3; r >= 0; r--) {
+          var s = 1 + r * 0.4;
+          p.fill(col.r, col.g, col.b, nb.alpha * (1 - r * 0.2));
+          p.ellipse(nx, ny, nb.rx * s, nb.ry * s);
+        }
+      }
+    }
+
+    function drawStars(p) {
+      p.noStroke();
+      for (var i = 0; i < stars.length; i++) {
+        var s = stars[i];
+        var parallax = (s.layer + 1) * 0.3;
+        var sx = s.x + sin(t * 0.02 * parallax + s.twinklePhase) * 2 * parallax;
+        var sy = s.y + cos(t * 0.015 * parallax + s.twinklePhase) * 1.5 * parallax;
+        var twinkle = sin(t * s.twinkleSpeed * 60 + s.twinklePhase) * 0.3 + 0.7;
+        p.fill(200, 210, 240, s.alpha * twinkle * 255);
+        p.ellipse(sx, sy, s.size, s.size);
+      }
+    }
+
+    function drawCharacter(p) {
+      var cx = CW / 2;
+      var headY = 220;
+      var shoulderY = 310;
+      var waistY = 520;
+      var hemY = 850;
+      var bio = hexToRgb(params.bioColor);
+      var ero = hexToRgb(params.erosionColor);
+
+      p.noStroke();
+
+      for (var i = 0; i < particles.length; i++) {
+        var pt = particles[i];
+        var nScale = params.flow * 0.003;
+        var nx = noise(pt.noiseOffX + t * 0.3 * params.flow, pt.noiseOffY) - 0.5;
+        var ny = noise(pt.noiseOffX, pt.noiseOffY + t * 0.3 * params.flow) - 0.5;
+
+        var driftX = nx * 60 * params.flow;
+        var driftY = ny * 40 * params.flow;
+
+        if (pt.zone === 'cloak') {
+          var cProgress = (pt.baseY - shoulderY) / (hemY - shoulderY);
+          driftX += sin(t * 0.8 + pt.baseY * 0.01 + pt.phase) * 20 * cProgress * params.flow;
+          driftY += cos(t * 0.6 + pt.baseX * 0.01 + pt.phase) * 8 * cProgress * params.flow;
+          driftX += sin(t * 1.5 + pt.phase) * 10 * cProgress * params.flow;
+        }
+
+        pt.x = pt.baseX + driftX;
+        pt.y = pt.baseY + driftY;
+
+        var distFromCenter = abs(pt.x - cx);
+        var verticalProgress = (pt.baseY - headY) / (hemY - headY);
+        var erosionChance = params.erosion * verticalProgress * (distFromCenter / 200);
+
+        var alpha = pt.alpha;
+        var r = 120, g = 80, b = 160;
+
+        if (pt.zone === 'cloak') {
+          r = 60 + verticalProgress * 30;
+          g = 30 + verticalProgress * 15;
+          b = 100 + verticalProgress * 40;
+          alpha *= lerp(1, 0.3, verticalProgress * params.erosion);
+        } else if (pt.zone === 'crown') {
+          r = 80; g = 60; b = 130;
+        } else if (pt.zone === 'head') {
+          r = 140; g = 120; b = 170;
+        } else if (pt.zone === 'torso') {
+          r = 100; g = 70; b = 150;
+        } else {
+          r = 90; g = 60; b = 140;
+        }
+
+        if (erosionChance > 0.3 && rng() < 0.001 * params.erosion) {
+          erodedParticles.push({
+            x: pt.x,
+            y: pt.y,
+            vx: (pt.x - cx) * 0.005 + (rng() - 0.5) * 0.5,
+            vy: rng() * 0.8 + 0.2,
+            life: 1,
+            decay: rng() * 0.01 + 0.005,
+            size: pt.size * 1.2,
+            isErosion: rng() < 0.4
+          });
+        }
+
+        var glowPulse = sin(t * 2 + pt.phase) * 0.15 + 0.85;
+        alpha *= glowPulse;
+
+        p.fill(r, g, b, alpha * 200);
+        p.ellipse(pt.x, pt.y, pt.size, pt.size);
+
+        if (pt.size > 1.5 && params.glow > 0.3) {
+          p.fill(r, g, b, alpha * 30 * params.glow);
+          p.ellipse(pt.x, pt.y, pt.size * 4, pt.size * 4);
+        }
+      }
+
+      drawCloakLines(p, cx, shoulderY, waistY, hemY);
+    }
+
+    function drawCloakLines(p, cx, shoulderY, waistY, hemY) {
+      p.noFill();
+      var lineCount = 25;
+      for (var i = 0; i < lineCount; i++) {
+        var progress = i / lineCount;
+        var y = shoulderY + progress * (hemY - shoulderY);
+        var baseW = lerp(60, 220, pow(progress, 0.7));
+
+        p.stroke(80, 40, 140, 20 * (1 - progress * params.erosion));
+        p.strokeWeight(0.5);
+
+        p.beginShape();
+        for (var sx = -1; sx <= 1; sx += 0.05) {
+          var lx = cx + sx * baseW;
+          var ly = y + sin(t * params.flow + sx * 3 + progress * 5) * 8 * progress * params.flow;
+          ly += cos(t * params.flow * 1.3 + sx * 2 + i) * 4 * progress * params.flow;
+          p.curveVertex(lx, ly);
+        }
+        p.endShape();
+      }
+    }
+
+    function drawBioPoints(p) {
+      var bio = hexToRgb(params.bioColor);
+      p.noStroke();
+
+      for (var i = 0; i < bioPoints.length; i++) {
+        var bp = bioPoints[i];
+        var pulse = sin(t * 3 + bp.phase) * 0.4 + 0.6;
+        var breathe = sin(t * 1.2) * 0.2 + 0.8;
+        var alpha = pulse * breathe * params.glow;
+
+        bp.x = bp.baseX + sin(t * params.flow + bp.phase) * 8;
+        bp.y = bp.baseY + cos(t * params.flow * 0.8 + bp.phase) * 5;
+
+        p.fill(bio.r, bio.g, bio.b, alpha * 255);
+        p.ellipse(bp.x, bp.y, bp.size * pulse, bp.size * pulse);
+
+        p.fill(bio.r, bio.g, bio.b, alpha * 40 * params.glow);
+        p.ellipse(bp.x, bp.y, bp.size * 8 * pulse, bp.size * 8 * pulse);
+
+        p.fill(bio.r, bio.g, bio.b, alpha * 10 * params.glow);
+        p.ellipse(bp.x, bp.y, bp.size * 20 * pulse, bp.size * 20 * pulse);
+      }
+    }
+
+    function drawErosion(p) {
+      var ero = hexToRgb(params.erosionColor);
+      var bio = hexToRgb(params.bioColor);
+      p.noStroke();
+
+      var newEroded = [];
+      for (var i = 0; i < erodedParticles.length; i++) {
+        var ep = erodedParticles[i];
+        ep.x += ep.vx;
+        ep.y += ep.vy;
+        ep.vy += 0.01;
+        ep.life -= ep.decay;
+
+        if (ep.life > 0) {
+          var a = ep.life * 200;
+          if (ep.isErosion) {
+            p.fill(ero.r, ero.g, ero.b, a);
+            p.ellipse(ep.x, ep.y, ep.size * ep.life, ep.size * ep.life);
+            p.fill(ero.r, ero.g, ero.b, a * 0.2 * params.glow);
+            p.ellipse(ep.x, ep.y, ep.size * 4 * ep.life, ep.size * 4 * ep.life);
+          } else {
+            p.fill(120, 80, 160, a * 0.5);
+            p.ellipse(ep.x, ep.y, ep.size * ep.life * 0.8, ep.size * ep.life * 0.8);
+          }
+          newEroded.push(ep);
+        }
+      }
+      erodedParticles = newEroded;
+
+      if (erodedParticles.length > 500) {
+        erodedParticles = erodedParticles.slice(-500);
+      }
+    }
+
+    function drawMemoryFragments(p) {
+      var bio = hexToRgb(params.bioColor);
+      p.noStroke();
+
+      for (var i = 0; i < memFragments.length; i++) {
+        var mf = memFragments[i];
+        mf.angle += mf.speed;
+        var pulse = sin(t * mf.pulseSpeed * 60 + mf.phase) * 0.5 + 0.5;
+        var mx = mf.cx + cos(mf.angle) * mf.dist;
+        var my = mf.cy + sin(mf.angle) * mf.dist * 0.6;
+
+        var alpha = pulse * params.glow * 180;
+
+        p.push();
+        p.translate(mx, my);
+        p.rotate(mf.angle + t * 0.2);
+
+        if (mf.type === 'diamond') {
+          p.fill(bio.r, bio.g, bio.b, alpha);
+          p.beginShape();
+          p.vertex(0, -mf.size);
+          p.vertex(mf.size * 0.5, 0);
+          p.vertex(0, mf.size);
+          p.vertex(-mf.size * 0.5, 0);
+          p.endShape(CLOSE);
+
+          p.fill(bio.r, bio.g, bio.b, alpha * 0.15 * params.glow);
+          p.beginShape();
+          p.vertex(0, -mf.size * 2.5);
+          p.vertex(mf.size * 1.2, 0);
+          p.vertex(0, mf.size * 2.5);
+          p.vertex(-mf.size * 1.2, 0);
+          p.endShape(CLOSE);
+        } else {
+          p.fill(bio.r, bio.g, bio.b, alpha);
+          p.triangle(0, -mf.size, mf.size * 0.6, mf.size * 0.4, -mf.size * 0.6, mf.size * 0.4);
+
+          p.fill(bio.r, bio.g, bio.b, alpha * 0.15 * params.glow);
+          p.triangle(0, -mf.size * 2.5, mf.size * 1.5, mf.size, -mf.size * 1.5, mf.size);
+        }
+
+        p.pop();
+      }
+    }
+
+    function drawEyeGlow(p) {
+      var bio = hexToRgb(params.bioColor);
+      var cx = CW / 2;
+      var eyeY = 218;
+      var eyeX = cx + 6;
+
+      var pulse = sin(t * 2.5) * 0.2 + 0.8;
+      var glowA = params.glow * pulse;
+
+      p.noStroke();
+
+      p.fill(bio.r, bio.g, bio.b, glowA * 200);
+      p.ellipse(eyeX, eyeY, 8, 5);
+
+      p.fill(bio.r, bio.g, bio.b, glowA * 80);
+      p.ellipse(eyeX, eyeY, 20, 14);
+
+      p.fill(bio.r, bio.g, bio.b, glowA * 25);
+      p.ellipse(eyeX, eyeY, 50, 35);
+
+      p.fill(bio.r, bio.g, bio.b, glowA * 8);
+      p.ellipse(eyeX, eyeY, 90, 60);
+
+      p.fill(255, 255, 255, glowA * 150);
+      p.ellipse(eyeX, eyeY, 3, 2);
+    }
+  };
+
+  var myP5 = new p5(sketch);
+
+  function bindSlider(id, valId, param, format) {
+    var slider = document.getElementById(id);
+    var valEl = document.getElementById(valId);
+    slider.addEventListener('input', function() {
+      var v = parseFloat(this.value);
+      params[param] = v;
+      valEl.textContent = format ? format(v) : v;
+    });
+  }
+
+  bindSlider('p-density', 'v-density', 'density', function(v) { return v; });
+  bindSlider('p-flow', 'v-flow', 'flow', function(v) { return v.toFixed(2); });
+  bindSlider('p-glow', 'v-glow', 'glow', function(v) { return v.toFixed(2); });
+  bindSlider('p-frag', 'v-frag', 'fragments', function(v) { return v; });
+  bindSlider('p-erosion', 'v-erosion', 'erosion', function(v) { return v.toFixed(2); });
+  bindSlider('p-cosmic', 'v-cosmic', 'cosmic', function(v) { return v.toFixed(2); });
+
+  document.getElementById('c-bg').addEventListener('input', function() { params.bgColor = this.value; });
+  document.getElementById('c-bio').addEventListener('input', function() { params.bioColor = this.value; });
+  document.getElementById('c-erosion').addEventListener('input', function() { params.erosionColor = this.value; });
+
+  function updateSeedDisplay() {
+    document.getElementById('seed-display').textContent = params.seed;
+  }
+
+  document.getElementById('btn-prev').addEventListener('click', function() {
+    params.seed = Math.max(0, params.seed - 1);
+    updateSeedDisplay();
+    initScene();
+  });
+
+  document.getElementById('btn-next').addEventListener('click', function() {
+    params.seed++;
+    updateSeedDisplay();
+    initScene();
+  });
+
+  document.getElementById('btn-rand').addEventListener('click', function() {
+    params.seed = Math.floor(Math.random() * 99999);
+    updateSeedDisplay();
+    initScene();
+  });
+
+  document.getElementById('btn-jump').addEventListener('click', function() {
+    var input = prompt('Enter seed number:', params.seed);
+    if (input !== null && !isNaN(parseInt(input))) {
+      params.seed = parseInt(input);
+      updateSeedDisplay();
+      initScene();
+    }
+  });
+
+  document.getElementById('btn-reset').addEventListener('click', function() {
+    params.density = 2000;
+    params.flow = 0.8;
+    params.glow = 0.7;
+    params.fragments = 15;
+    params.erosion = 0.3;
+    params.cosmic = 0.4;
+    params.bgColor = '#0A0E1A';
+    params.bioColor = '#00FFD4';
+    params.erosionColor = '#FF6B35';
+    params.seed = 42;
+
+    document.getElementById('p-density').value = 2000;
+    document.getElementById('v-density').textContent = '2000';
+    document.getElementById('p-flow').value = 0.8;
+    document.getElementById('v-flow').textContent = '0.80';
+    document.getElementById('p-glow').value = 0.7;
+    document.getElementById('v-glow').textContent = '0.70';
+    document.getElementById('p-frag').value = 15;
+    document.getElementById('v-frag').textContent = '15';
+    document.getElementById('p-erosion').value = 0.3;
+    document.getElementById('v-erosion').textContent = '0.30';
+    document.getElementById('p-cosmic').value = 0.4;
+    document.getElementById('v-cosmic').textContent = '0.40';
+    document.getElementById('c-bg').value = '#0A0E1A';
+    document.getElementById('c-bio').value = '#00FFD4';
+    document.getElementById('c-erosion').value = '#FF6B35';
+    updateSeedDisplay();
+    initScene();
+  });
+
+  document.getElementById('btn-download').addEventListener('click', function() {
+    var cnv = document.querySelector('canvas');
+    var link = document.createElement('a');
+    link.download = 'nayuta-reborn-seed' + params.seed + '.png';
+    link.href = cnv.toDataURL('image/png');
+    link.click();
+  });
+
+})();
+</script>
+
+</body>
+</html>

@@ -1,5 +1,60 @@
 # CHANGELOG.md — Nayuta 迭代日志
 
+## [2026-06-01 23:00 迭代18] - 视觉深化与重玩价值 | 所用 skills: algorithmic-art | 完成的任务 ID: T060, T061, T062 | 备注: 自检通过，构建成功
+
+### 完成内容
+- **主角概念图生成器 (T060)**：因 byted-seedream-image-gen 缺少 ARK_API_KEY，使用 algorithmic-art 创建了"Nayuta Reborn"交互式程序化角色概念图生成器：
+  - 800x1000 竖向画布，粒子构成的虚幻少女形象
+  - 流动斗篷模拟（多层 Perlin 噪声驱动有机飘动）
+  - 生物发光点缀（荧光青脉冲光点沿斗篷边缘和皇冠分布）
+  - 记忆碎片（菱形/三角形轨道碎片，脉动显隐）
+  - 深渊背景（星场+星云薄雾+深度渐变）
+  - 侵蚀效果（角色边缘粒子溶解漂散+橙色侵蚀辉光）
+  - 宇宙恐怖元素（背景中若隐若现的巨眼）
+  - 独眼辉光（多层径向渐变渲染）
+  - 可调参数：粒子密度/斗篷流动/辉光强度/碎片数量/侵蚀等级/宇宙存在感
+  - 颜色选择器：深渊背景/生物发光/侵蚀辉光，遵循 STYLE_GUIDE.md
+  - 算法哲学文档：nayuta-reborn-philosophy.md
+- **隐藏秘密区域系统 (T061)**：实现了完整的隐藏秘密区域系统，增加探索深度和重玩价值：
+  - 每层深渊1-2个隐藏秘密区域（浅层2个、中层2个、深层2个、最深层1个，共7个）
+  - 秘密区域入口：荧光青脉冲光晕+六边形符文标记，接近触发半径时自动发现
+  - 发现时效果：20个粒子爆发+荧光青文字揭示+音效反馈
+  - 秘密区域内容：额外记忆之锚+独有叙事碎片+隐藏平台
+  - 叙事碎片：每层2条独特叙事文本（如"在最深的光里，藏着最初的记忆""紫色不是颜色，是时间的淤伤"等）
+  - 平台碰撞：已发现的秘密区域平台参与玩家碰撞检测
+  - 持久化存储：SaveSystem 新增 discoveredSecrets 数组，跨会话保存
+  - HUD 显示：右上角"隐秘记忆 X/Y"计数器
+  - 小地图标记：未发现秘密区域显示微弱荧光青脉冲光点
+  - 成就系统扩展：新增2个成就（隐秘之光/深渊全知）
+- **深渊侵蚀蔓延 shader 生成器 (T062)**：使用 algorithmic-art 创建了"Abyssal Consummation"交互式侵蚀蔓延生成器：
+  - 1200x800 横向画布，五大算法效果系统
+  - 侵蚀裂痕：基于 Perlin 噪声场的分支裂痕传播，青色→橙色边缘辉光
+  - 溶解区域：裂痕交叉处的有机溶解，噪声驱动透明度
+  - 维度碎片：六边形/三角形/菱形碎片漂移、旋转、渐隐
+  - 记忆回响：溶解区域中的几何残影，脉动出现与消失
+  - 完满脉冲：从中心辐射的周期性波动，增强所有效果
+  - 可调参数：裂痕数量/分支深度/溶解速度/碎片数量/脉冲频率/侵蚀强度
+  - 颜色选择器：深渊底色/青色辉光/橙色侵蚀，遵循 STYLE_GUIDE.md
+  - 算法哲学文档：abyssal-consummation-philosophy.md
+
+### 使用的 Skills
+- algorithmic-art: 主角概念图生成器（Nayuta Reborn）+ 深渊侵蚀蔓延 shader 生成器（Abyssal Consummation）
+
+### 新增文件
+- assets/images/nayuta-reborn-philosophy.md: 主角概念图算法哲学
+- assets/images/nayuta-reborn.html: 主角概念图交互式生成器
+- assets/shaders/abyssal-consummation-philosophy.md: 深渊侵蚀蔓延算法哲学
+- assets/shaders/abyssal-consummation.html: 深渊侵蚀蔓延交互式生成器
+
+### 修改文件
+- src/core/level-data.js: 4层关卡添加 secretAreas 数据（共7个秘密区域）
+- src/core/save-system.js: 新增 discoveredSecrets 持久化 + discoverSecret/isSecretDiscovered/getDiscoveredSecretsCount 方法
+- src/core/achievement-system.js: 新增2个成就（first_secret 隐秘之光 / all_secrets 深渊全知）
+- src/scenes/game-scene.js: 集成秘密区域系统（加载/更新/渲染/碰撞/HUD/小地图）
+
+### 异常记录
+- byted-seedream-image-gen 因 ARK_API_KEY 缺少无法使用，T060 已用 algorithmic-art 程序化概念图生成器替代
+
 ## [2026-06-01 21:00 迭代17] - 深渊回声与成就系统 | 所用 skills: frontend-skill, algorithmic-art | 完成的任务 ID: T057, T058, T059 | 备注: 自检通过，构建成功
 
 ### 完成内容

@@ -99,6 +99,20 @@ const ACHIEVEMENTS = [
     icon: '✧',
     check: (stats) => stats.completedGame && stats.deathCount === 0,
   },
+  {
+    id: 'first_secret',
+    name: '隐秘之光',
+    desc: '发现第一个隐藏记忆',
+    icon: '◇',
+    check: (stats) => stats.discoveredSecrets >= 1,
+  },
+  {
+    id: 'all_secrets',
+    name: '深渊全知',
+    desc: '发现所有隐藏记忆',
+    icon: '✧',
+    check: (stats) => stats.discoveredSecrets >= 7,
+  },
 ];
 
 class AchievementSystem {

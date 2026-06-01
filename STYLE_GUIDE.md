@@ -63,6 +63,7 @@
 ## 范例图片路径
 - 概念图-主角（v1）：assets/images/concept_nayuta_generator.html（程序化生成器，基础版）
 - 概念图-主角（v2）：assets/images/concept_nayuta_procedural.html（程序化生成器，精致版，含斗篷/冠冕/侵蚀效果）
+- 概念图-主角（v3）：assets/images/nayuta-reborn.html（程序化生成器，Nayuta Reborn，含粒子角色/流动斗篷/生物发光/宇宙恐怖元素）
 - 概念图-场景：assets/images/concept_abyss.html（程序化场景概念图生成器，含4层深渊深度切换）
 - 概念图-道具：assets/images/concept_anchor.html（程序化记忆之锚概念图生成器，含轨道环/符文/侵蚀效果）
 - 情绪板：assets/images/moodboard.png（待生成）
@@ -78,6 +79,7 @@
 - 深渊星云生成器：assets/shaders/abyss-nebula-generator.html（多层 domain-warped 噪声星云，含侵蚀叠加和深度视差）
 - 深渊暴风天气生成器：assets/shaders/abyssal-tempest.html（记忆雨+侵蚀尘埃+虚空闪电+涡旋风场+侵蚀叠加）
 - 深渊裂隙生成器：assets/shaders/abyssal-rift.html（空间撕裂+维度渗透+虚空之眼+侵蚀蔓延+维度碎片）
+- 深渊侵蚀蔓延生成器：assets/shaders/abyssal-consummation.html（侵蚀裂痕+溶解区域+维度碎片+记忆回响+完满脉冲）
 
 ## Shader 风格参考
 - 星空粒子：缓慢飘散的星尘，有深度视差
@@ -110,6 +112,13 @@
 - 锚点：荧光青脉冲光点(2px)，危险：岩浆橙/裂缝红/尖刺橙
 - 玩家：荧光青核心(2px)+脉冲光晕(5px)+方向指示线(6px)
 - 视口：月光白半透明框(0.2 alpha)
+
+## 秘密区域视觉规范
+- 未发现入口：荧光青脉冲光晕（径向渐变，triggerRadius×1.5 范围）+ 六边形符文轮廓（8+3px 大小，0.15-0.25 alpha）
+- 发现动画：20个荧光青/月光白粒子爆发 + 文字揭示（300ms淡入→1500ms可见→800ms淡出）
+- 已发现区域：隐藏平台（深渊蓝0.7 alpha+荧光青0.15脉冲边框）+ 区域荧光青辉光
+- 小地图标记：未发现秘密区域显示1.5px荧光青脉冲光点（0.25 alpha）
+- HUD：右上角"隐秘记忆 X/Y"文字，已发现时荧光青0.5 alpha，未发现时星尘灰0.35 alpha
 
 ## 侵蚀系统视觉规范
 - 深度0（浅层）：无侵蚀，纯净童话感
