@@ -1,6 +1,7 @@
 import { Scene } from '../core/scene.js';
 import { COLORS } from '../constants.js';
 import { saveSystem } from '../core/save-system.js';
+import { achievementSystem } from '../core/achievement-system.js';
 
 export class EndingScene extends Scene {
   constructor(input, sceneManager, audioSystem) {
@@ -158,6 +159,8 @@ export class EndingScene extends Scene {
         crack.growth += dt * 0.002;
       }
     }
+
+    achievementSystem.update(dt);
   }
 
   _updateDescent(dt) {
@@ -205,6 +208,8 @@ export class EndingScene extends Scene {
           this.endingSubtext = '那由他以凡人之躯凝视了不可名状的存在。她的眼中，从此映照着宇宙的真相。';
           saveSystem.saveEnding('abyss');
         }
+
+        this._checkEndingAchievements();
       }
     }
   }
@@ -293,6 +298,8 @@ export class EndingScene extends Scene {
       ctx.fillStyle = `rgba(0, 0, 0, ${this.fadeAlpha})`;
       ctx.fillRect(0, 0, w, h);
     }
+
+    achievementSystem.renderNotifications(ctx, w, h);
   }
 
   _renderDescent(ctx, w, h) {
@@ -927,5 +934,19 @@ export class EndingScene extends Scene {
 
     ctx.globalAlpha = 1;
     ctx.restore();
+  }
+
+  _checkEndingAchievements() {
+    const data = saveSystem.getData();
+    const stats = {
+      totalAnchors: data.totalAnchorsCollected || 0,
+      maxDepth: data.unlockedDepth || 0,
+      deathCount: data.deathCount || 0,
+      playTime: data.playTime || 0,
+      endingsSeen: data.endingsSeen || [],
+      completedGame: true,
+      discoveredFragments: (data.discoveredFragments || []).length,
+    };
+    achievementSystem.checkAll(stats);
   }
 }

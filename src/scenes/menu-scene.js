@@ -1,6 +1,7 @@
 import { Scene } from '../core/scene.js';
 import { COLORS } from '../constants.js';
 import { saveSystem } from '../core/save-system.js';
+import { achievementSystem } from '../core/achievement-system.js';
 
 export class MenuScene extends Scene {
   constructor(input, sceneManager, audioSystem) {
@@ -27,6 +28,9 @@ export class MenuScene extends Scene {
     this.menuItemAlphas = [];
     this.floatingRunes = [];
     this.lightStreaks = [];
+    this.showAchievements = false;
+    this.achievementScrollY = 0;
+    this.achievementMaxScroll = 0;
   }
 
   init() {
@@ -201,7 +205,7 @@ export class MenuScene extends Scene {
     this.pulseRings = [];
     this.hasContinue = saveSystem.hasSave() && saveSystem.getUnlockedDepth() > 0;
     if (this.hasContinue) {
-      this.menuItems = ['继续探索', '关卡选择', '记忆图鉴', '重新开始', '关于'];
+      this.menuItems = ['继续探索', '关卡选择', '记忆图鉴', '成就', '重新开始', '关于'];
     } else {
       this.menuItems = ['开始探索', '关于'];
     }
@@ -336,9 +340,25 @@ export class MenuScene extends Scene {
         streak.alpha *= 0.95;
       }
     }
+
+    if (this.showAchievements) {
+      const scrollSpeed = 3;
+      if (this.input.isDown('ArrowUp') || this.input.isDown('KeyW')) {
+        this.achievementScrollY = Math.max(0, this.achievementScrollY - scrollSpeed);
+      }
+      if (this.input.isDown('ArrowDown') || this.input.isDown('KeyS')) {
+        this.achievementScrollY = Math.min(this.achievementMaxScroll, this.achievementScrollY + scrollSpeed);
+      }
+    }
   }
 
   _selectItem() {
+    if (this.showAchievements) {
+      this.showAchievements = false;
+      this.achievementScrollY = 0;
+      return;
+    }
+
     if (this.hasContinue) {
       switch (this.selectedIndex) {
         case 0:
@@ -352,11 +372,15 @@ export class MenuScene extends Scene {
           this.sceneManager.switchTo('codex');
           break;
         case 3:
+          this.showAchievements = true;
+          this.achievementScrollY = 0;
+          break;
+        case 4:
           saveSystem.clearSave();
           this.sceneManager.preloadScene('game');
           this.sceneManager.switchTo('game');
           break;
-        case 4:
+        case 5:
           this.sceneManager.switchTo('about');
           break;
       }
@@ -393,6 +417,10 @@ export class MenuScene extends Scene {
     this._renderMenu(ctx, w, h);
     this._renderHint(ctx, w, h);
     this._renderScanLines(ctx, w, h);
+
+    if (this.showAchievements) {
+      this.achievementMaxScroll = Math.max(0, achievementSystem.renderPanel(ctx, w, h, this.achievementScrollY) - (h - 120));
+    }
   }
 
   _renderDepthGradient(ctx, w, h) {

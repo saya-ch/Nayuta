@@ -7,6 +7,7 @@ import { HintSystem } from '../core/hint-system.js';
 import { resourceManager } from '../core/resource-manager.js';
 import { saveSystem } from '../core/save-system.js';
 import { Camera } from '../core/camera.js';
+import { achievementSystem } from '../core/achievement-system.js';
 
 export class GameScene extends Scene {
   constructor(input, sceneManager, audioSystem) {
@@ -95,6 +96,9 @@ export class GameScene extends Scene {
     this.weatherTime = 0;
     this.riftFragments = [];
     this.riftEyes = [];
+    this.echoWaves = [];
+    this.echoParticles = [];
+    this.vortexTime = 0;
   }
 
   init() {
@@ -258,6 +262,8 @@ export class GameScene extends Scene {
     this.wasOnGround = false;
     this.landingParticles = [];
     this.landingImpactTimer = 0;
+    this.echoWaves = [];
+    this.echoParticles = [];
     this._initScanLines();
     this._initRealityCracks();
 
@@ -287,6 +293,8 @@ export class GameScene extends Scene {
     this.weatherParticles = [];
     this.weatherVortices = [];
     this.weatherLightning = [];
+    this.echoWaves = [];
+    this.echoParticles = [];
   }
 
   _generateParticles(level) {
@@ -555,6 +563,8 @@ export class GameScene extends Scene {
         this.anchorCount++;
         if (this.audio) this.audio.playSFX('anchorCollect');
         saveSystem.saveLevelProgress(this.depth, this.anchorCount, this.anchors.length, false);
+        this._triggerEcho(anchor.x, anchor.y);
+        this._checkAchievements();
       }
     }
 
@@ -582,6 +592,7 @@ export class GameScene extends Scene {
     this.erosionLevel = this.anchorCount / Math.max(1, this.anchors.length);
 
     this.erosionTime += dt;
+    this.vortexTime += dt;
     this.colorShiftAmount = this.depth * 0.25 + this.erosionLevel * 0.15;
 
     if (this.depth >= 2) {
@@ -621,6 +632,8 @@ export class GameScene extends Scene {
     }
 
     this._updateRealityCracks(dt);
+    this._updateEchoWaves(dt);
+    achievementSystem.update(dt);
 
     this.puzzleManager.update(dt, this.player.x, this.player.y - 24, this.player.onGround);
 
@@ -950,11 +963,14 @@ export class GameScene extends Scene {
     ctx.restore();
 
     this._renderHUD(ctx, w, h, level);
+    achievementSystem.renderNotifications(ctx, w, h);
     this._renderErosionOverlay(ctx, w, h);
     this._renderColorShift(ctx, w, h);
     this._renderScanLines(ctx, w, h);
     this._renderRealityCracks(ctx, w, h);
     this._renderRiftEnhancement(ctx, w, h);
+    this._renderEchoWaves(ctx, w, h);
+    this._renderAbyssalVortex(ctx, w, h);
     this._renderDepthEffects(ctx, w, h);
     this.narrativeSystem.renderLightFlares(ctx);
     this.narrativeSystem.renderWhisperParticles(ctx);
@@ -2140,6 +2156,7 @@ export class GameScene extends Scene {
     }
 
     if (this.audio) this.audio.playSFX('playerDeath');
+    this._checkAchievements();
   }
 
   _updateDeath(dt) {
@@ -3184,5 +3201,228 @@ export class GameScene extends Scene {
       ctx.globalAlpha = 1;
       ctx.restore();
     }
+  }
+
+  _triggerEcho(x, y) {
+    for (let i = 0; i < 3; i++) {
+      this.echoWaves.push({
+        x,
+        y,
+        radius: 0,
+        maxRadius: 200 + i * 80,
+        speed: 120 + i * 30,
+        alpha: 0.6 - i * 0.15,
+        lineWidth: 2.5 - i * 0.5,
+        delay: i * 200,
+        elapsed: 0,
+        started: false,
+      });
+    }
+
+    const symbolShapes = ['hexagon', 'triangle', 'diamond'];
+    for (let i = 0; i < 16; i++) {
+      const angle = (i / 16) * Math.PI * 2 + (Math.random() - 0.5) * 0.3;
+      const speed = 1.5 + Math.random() * 3;
+      this.echoParticles.push({
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        size: 2 + Math.random() * 4,
+        shape: symbolShapes[Math.floor(Math.random() * symbolShapes.length)],
+        rotation: Math.random() * Math.PI * 2,
+        rotSpeed: (Math.random() - 0.5) * 0.08,
+        alpha: 0.8 + Math.random() * 0.2,
+        life: 1200 + Math.random() * 600,
+        maxLife: 1800,
+        isCyan: Math.random() > 0.3,
+      });
+    }
+
+    this.camera.addShake(3, 300);
+  }
+
+  _checkAchievements() {
+    const data = saveSystem.getData();
+    const stats = {
+      totalAnchors: data.totalAnchorsCollected || 0,
+      maxDepth: data.unlockedDepth || 0,
+      deathCount: data.deathCount || 0,
+      playTime: data.playTime || 0,
+      endingsSeen: data.endingsSeen || [],
+      completedGame: data.levelProgress[3] && data.levelProgress[3].completed,
+      discoveredFragments: (data.discoveredFragments || []).length,
+    };
+    achievementSystem.checkAll(stats);
+  }
+
+  _updateEchoWaves(dt) {
+    for (let i = this.echoWaves.length - 1; i >= 0; i--) {
+      const wave = this.echoWaves[i];
+      wave.elapsed += dt;
+
+      if (wave.elapsed < wave.delay) continue;
+      if (!wave.started) {
+        wave.started = true;
+      }
+
+      wave.radius += wave.speed * (dt / 1000);
+      const progress = wave.radius / wave.maxRadius;
+      wave.alpha = Math.max(0, (1 - progress) * 0.6);
+
+      if (wave.radius >= wave.maxRadius) {
+        this.echoWaves.splice(i, 1);
+      }
+    }
+
+    for (let i = this.echoParticles.length - 1; i >= 0; i--) {
+      const p = this.echoParticles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vx *= 0.97;
+      p.vy *= 0.97;
+      p.rotation += p.rotSpeed;
+      p.life -= dt;
+      p.alpha = Math.max(0, (p.life / p.maxLife) * 0.8);
+      p.size *= 0.998;
+
+      if (p.life <= 0) {
+        this.echoParticles.splice(i, 1);
+      }
+    }
+  }
+
+  _renderEchoWaves(ctx, w, h) {
+    for (const wave of this.echoWaves) {
+      if (!wave.started || wave.alpha <= 0.01) continue;
+
+      ctx.save();
+      ctx.globalAlpha = wave.alpha;
+
+      const isDeep = this.depth >= 2;
+      const color = isDeep ? '255, 107, 53' : '0, 255, 212';
+
+      ctx.strokeStyle = `rgba(${color}, ${wave.alpha})`;
+      ctx.lineWidth = wave.lineWidth * (1 - wave.radius / wave.maxRadius);
+      ctx.shadowColor = isDeep ? '#FF6B35' : '#00FFD4';
+      ctx.shadowBlur = 8 * wave.alpha;
+      ctx.beginPath();
+      ctx.arc(wave.x, wave.y, wave.radius, 0, Math.PI * 2);
+      ctx.stroke();
+
+      if (wave.radius > 30) {
+        const innerAlpha = wave.alpha * 0.15;
+        const gradient = ctx.createRadialGradient(
+          wave.x, wave.y, wave.radius * 0.8,
+          wave.x, wave.y, wave.radius
+        );
+        gradient.addColorStop(0, `rgba(${color}, 0)`);
+        gradient.addColorStop(1, `rgba(${color}, ${innerAlpha})`);
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(wave.x, wave.y, wave.radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    }
+
+    for (const p of this.echoParticles) {
+      if (p.alpha <= 0.01) continue;
+
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rotation);
+      ctx.globalAlpha = p.alpha;
+
+      ctx.fillStyle = p.isCyan ? COLORS.FLUORESCENT_CYAN : COLORS.VOID_ORANGE;
+
+      ctx.beginPath();
+      if (p.shape === 'hexagon') {
+        for (let i = 0; i < 6; i++) {
+          const a = (Math.PI * 2 / 6) * i - Math.PI / 2;
+          const method = i === 0 ? 'moveTo' : 'lineTo';
+          ctx[method](Math.cos(a) * p.size, Math.sin(a) * p.size);
+        }
+        ctx.closePath();
+      } else if (p.shape === 'triangle') {
+        for (let i = 0; i < 3; i++) {
+          const a = (Math.PI * 2 / 3) * i - Math.PI / 2;
+          const method = i === 0 ? 'moveTo' : 'lineTo';
+          ctx[method](Math.cos(a) * p.size, Math.sin(a) * p.size);
+        }
+        ctx.closePath();
+      } else {
+        ctx.moveTo(0, -p.size);
+        ctx.lineTo(p.size * 0.6, 0);
+        ctx.lineTo(0, p.size);
+        ctx.lineTo(-p.size * 0.6, 0);
+        ctx.closePath();
+      }
+      ctx.fill();
+
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    }
+  }
+
+  _renderAbyssalVortex(ctx, w, h) {
+    if (this.depth < 2) return;
+
+    const cx = w / 2;
+    const cy = h / 2;
+    const t = this.vortexTime;
+    const intensity = (this.depth - 1) * 0.15 + this.erosionLevel * 0.1;
+
+    ctx.save();
+
+    const breath = Math.sin(t * 0.001) * 0.5 + 0.5;
+    const coreR = 6 + breath * 8;
+    for (let layer = 3; layer >= 0; layer--) {
+      const r = coreR * (1 + layer * 2.5);
+      const alpha = (0.02 + breath * 0.03) * (1 - layer * 0.2) * intensity;
+      ctx.fillStyle = `rgba(0, 255, 212, ${alpha})`;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    const armCount = 4;
+    ctx.strokeStyle = `rgba(0, 255, 212, ${0.025 * intensity})`;
+    ctx.lineWidth = 0.8;
+    for (let arm = 0; arm < armCount; arm++) {
+      const baseAngle = (arm / armCount) * Math.PI * 2 + t * 0.0002;
+      ctx.beginPath();
+      for (let d = 15; d < 300; d += 4) {
+        const spiralAngle = baseAngle + d * 0.018 + Math.sin(d * 0.02 + t * 0.001) * 0.25;
+        const x = cx + Math.cos(spiralAngle) * d;
+        const y = cy + Math.sin(spiralAngle) * d * 0.6;
+        if (d === 15) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+
+    const foldCount = 4;
+    for (let i = 0; i < foldCount; i++) {
+      const phase = t * 0.0005 + i * 1.5;
+      const radius = 80 + i * 50 + Math.sin(phase) * 15;
+      const wobble = Math.sin(phase * 2.3) * 10;
+      ctx.strokeStyle = `rgba(255, 107, 53, ${0.02 * intensity})`;
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.ellipse(cx + wobble, cy, radius, radius * 0.6, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    const ehRadius = 18 + Math.sin(t * 0.0015) * 4;
+    ctx.strokeStyle = `rgba(0, 255, 212, ${0.1 * intensity})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, ehRadius, ehRadius * 0.6, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.restore();
   }
 }

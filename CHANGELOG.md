@@ -1,5 +1,26 @@
 # CHANGELOG.md — Nayuta 迭代日志
 
+## [2026-06-01 21:00 迭代17] - 深渊回声与成就系统 | 所用 skills: frontend-skill, algorithmic-art | 完成的任务 ID: T057, T058, T059 | 备注: 自检通过，构建成功
+
+### 完成内容
+- T057: 实现深渊回声系统 — 收集记忆之锚时触发3层波纹扩散效果+16个几何符号粒子爆发+相机震动反馈
+- T058: 实现完整成就系统 — 14个成就定义（锚点/深度/结局/死亡/速度/探索/无瑕）、成就通知弹窗（滑入动画+脉冲光晕）、成就面板（进度条+滚动列表+锁定/解锁状态）、主菜单成就入口
+- T059: 创建深渊漩涡 shader 生成器 — p5.js交互式生成器（引力场+螺旋臂+记忆碎片+维度折叠+侵蚀叠加+事件视界），游戏内深渊2-3层漩涡背景效果
+
+### 使用的 Skills
+- frontend-skill: 成就系统 UI 设计（通知弹窗、成就面板、主菜单集成）
+- algorithmic-art: 深渊漩涡 shader 生成器（算法哲学文档+交互式 p5.js 生成器）
+
+### 新增文件
+- src/core/achievement-system.js: 成就系统核心模块
+- assets/shaders/abyssal-vortex-philosophy.md: 深渊漩涡算法哲学
+- assets/shaders/abyssal-vortex.html: 深渊漩涡交互式生成器
+
+### 修改文件
+- src/scenes/game-scene.js: 集成回声系统+成就检查+深渊漩涡渲染
+- src/scenes/menu-scene.js: 添加成就面板入口和交互
+- src/scenes/ending-scene.js: 集成结局成就检查
+
 ## [2026-06-01 20:00 迭代16] - 游戏体验完善与视觉深化 | 所用 skills: frontend-skill, algorithmic-art | 完成的任务 ID: T054, T055, T056 | 备注: 自检通过，构建成功
 
 ### 完成内容
