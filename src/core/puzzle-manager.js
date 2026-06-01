@@ -61,7 +61,7 @@ export class PuzzleManager {
       if (el.type === 'lightMirror') {
         const dx = x - el.x;
         const dy = y - el.y;
-        if (dx * dx + dy * dy < 400) {
+        if (dx * dx + dy * dy < 900) {
           return el;
         }
       }
@@ -74,7 +74,7 @@ export class PuzzleManager {
       if (el.type === 'lightTarget') {
         const dx = x - el.x;
         const dy = y - el.y;
-        if (dx * dx + dy * dy < 400) {
+        if (dx * dx + dy * dy < 900) {
           return el;
         }
       }
@@ -102,8 +102,10 @@ export class PuzzleManager {
       .every(e => e.activated);
 
     if (allTargetsHit && this.elements.some(e => e.type === 'lightTarget')) {
-      this.solved = true;
-      if (this.onSolve) this.onSolve();
+      if (!this.solved) {
+        this.solved = true;
+        if (this.onSolve) this.onSolve();
+      }
     }
 
     this._dirty = true;

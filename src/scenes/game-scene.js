@@ -113,6 +113,8 @@ export class GameScene extends Scene {
     this.secretRevealText = '';
     this.secretRevealTimer = 0;
     this.secretParticles = [];
+    this.zoneEffects = [];
+    this.zoneWarpCooldown = 0;
   }
 
   init() {
@@ -135,6 +137,20 @@ export class GameScene extends Scene {
     LevelData.preloadAdjacentLevels(this.depth);
     this._preloadNextLevelResources();
     this._playTimeAccum = 0;
+    this._assistSettings = this._loadAssistSettings();
+  }
+
+  _loadAssistSettings() {
+    const saved = saveSystem.loadSettings();
+    if (saved && saved.assist) {
+      return { ...saved.assist };
+    }
+    return { gameSpeed: 0, invincible: 0, infiniteJump: 0, lowGravity: 0 };
+  }
+
+  _getGameSpeedMultiplier() {
+    const speeds = [1.0, 0.8, 0.6, 0.4];
+    return speeds[this._assistSettings.gameSpeed || 0];
   }
 
   _preloadNextLevelResources() {
@@ -222,6 +238,43 @@ export class GameScene extends Scene {
     this.secretRevealText = '';
     this.secretRevealTimer = 0;
     this.secretParticles = [];
+
+    this.zoneEffects = [];
+    for (const ze of (level.zoneEffects || [])) {
+      const runtime = {
+        type: ze.type,
+        x: ze.x,
+        y: ze.y,
+        w: ze.w,
+        h: ze.h,
+        gravityScale: ze.gravityScale || 1,
+        speedScale: ze.speedScale || 1,
+        orbCount: ze.orbCount || 5,
+        warpGroupId: ze.warpGroupId || '',
+        cooldown: ze.cooldown || 3000,
+        particles: [],
+        orbs: [],
+        ripples: [],
+        pulsePhase: Math.random() * Math.PI * 2,
+        playerInside: false,
+        wasPlayerInside: false,
+      };
+      if (ze.type === 'lightOrb') {
+        for (let i = 0; i < (ze.orbCount || 5); i++) {
+          runtime.orbs.push({
+            x: ze.x + Math.random() * ze.w,
+            y: ze.y + Math.random() * ze.h,
+            vx: (Math.random() - 0.5) * 0.3,
+            vy: (Math.random() - 0.5) * 0.3,
+            size: 3 + Math.random() * 5,
+            alpha: 0.3 + Math.random() * 0.4,
+            phase: Math.random() * Math.PI * 2,
+          });
+        }
+      }
+      this.zoneEffects.push(runtime);
+    }
+    this.zoneWarpCooldown = 0;
 
     this.player.x = level.playerStart.x;
     this.player.y = level.playerStart.y;
@@ -336,6 +389,8 @@ export class GameScene extends Scene {
     this.echoParticles = [];
     this.secretAreas = [];
     this.secretParticles = [];
+    this.zoneEffects = [];
+    this.zoneWarpCooldown = 0;
   }
 
   _generateParticles(level) {
@@ -401,6 +456,8 @@ export class GameScene extends Scene {
   }
 
   update(dt) {
+    const speedMult = this._getGameSpeedMultiplier();
+    dt = dt * speedMult;
     this.time += dt;
     this.playerAnimTime += dt;
     this.breathCycle += dt * 0.003;
@@ -532,9 +589,24 @@ export class GameScene extends Scene {
       return;
     }
 
-    const speed = 200;
-    const gravity = 800;
+    let speed = 200;
+    let gravity = 800;
     const jumpForce = -400;
+
+    if (this._assistSettings.lowGravity === 1) {
+      gravity = 400;
+    }
+
+    for (const ze of this.zoneEffects) {
+      ze.wasPlayerInside = ze.playerInside;
+      const px = this.player.x;
+      const py = this.player.y - 24;
+      ze.playerInside = px > ze.x && px < ze.x + ze.w && py > ze.y && py < ze.y + ze.h;
+      if (ze.playerInside) {
+        if (ze.type === 'lowGravity') gravity = 800 * ze.gravityScale;
+        if (ze.type === 'slowZone') speed = 200 * ze.speedScale;
+      }
+    }
 
     this.wasOnGround = this.player.onGround;
 
@@ -576,7 +648,7 @@ export class GameScene extends Scene {
       this.player.vx *= 0.85;
     }
 
-    if (this.jumpBufferTimer > 0 && this.coyoteTimer > 0 && !this.isJumping) {
+    if (this.jumpBufferTimer > 0 && (this.coyoteTimer > 0 || this._assistSettings.infiniteJump === 1) && !this.isJumping) {
       this.player.vy = jumpForce;
       this.player.onGround = false;
       this.isJumping = true;
@@ -646,6 +718,53 @@ export class GameScene extends Scene {
 
     this._updatePortals(dt, playerW, playerH);
 
+    if (this.zoneWarpCooldown > 0) {
+      this.zoneWarpCooldown -= dt;
+    }
+    for (const ze of this.zoneEffects) {
+      if (ze.type === 'voidWarp' && ze.playerInside && !ze.wasPlayerInside && this.zoneWarpCooldown <= 0) {
+        const candidates = this.zoneEffects.filter(z => z.type === 'voidWarp' && z.warpGroupId === ze.warpGroupId && z !== ze);
+        if (candidates.length > 0) {
+          const target = candidates[Math.floor(Math.random() * candidates.length)];
+          this.player.x = target.x + target.w / 2;
+          this.player.y = target.y + target.h / 2 + 24;
+          this.player.vx = 0;
+          this.player.vy = 0;
+          this.zoneWarpCooldown = 2000;
+          for (let i = 0; i < 20; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const spd = Math.random() * 2 + 1;
+            ze.particles.push({
+              x: this.player.x + (Math.random() - 0.5) * 20,
+              y: this.player.y - 24 + (Math.random() - 0.5) * 40,
+              vx: Math.cos(angle) * spd,
+              vy: Math.sin(angle) * spd,
+              size: Math.random() * 3 + 1,
+              alpha: 1,
+              life: 800,
+              maxLife: 800,
+            });
+          }
+          for (let i = 0; i < 20; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const spd = Math.random() * 2 + 1;
+            target.particles.push({
+              x: target.x + target.w / 2 + (Math.random() - 0.5) * 20,
+              y: target.y + target.h / 2 + (Math.random() - 0.5) * 40,
+              vx: Math.cos(angle) * spd,
+              vy: Math.sin(angle) * spd,
+              size: Math.random() * 3 + 1,
+              alpha: 1,
+              life: 800,
+              maxLife: 800,
+            });
+          }
+          if (this.audio) this.audio.playSFX('mirrorRotate');
+          break;
+        }
+      }
+    }
+
     this.player.x = Math.max(20, Math.min(1260, this.player.x));
 
     this.camera.follow(this.player.x, this.player.y - 24, this.player.facing);
@@ -687,6 +806,7 @@ export class GameScene extends Scene {
     }
 
     this._updateSecretAreas(dt);
+    this._updateZoneEffects(dt);
 
     const lw = this.currentLevel ? (this.currentLevel.width || 1280) : 1280;
     const lh = this.currentLevel ? (this.currentLevel.height || 720) : 720;
@@ -1070,6 +1190,7 @@ export class GameScene extends Scene {
     this._renderAnchors(ctx, w, h);
     this._renderPortals(ctx, w, h);
     this._renderHazards(ctx, w, h);
+    this._renderZoneEffects(ctx);
     this.narrativeSystem.renderFragments(ctx);
     this.puzzleManager.render(ctx);
     this._renderSecretAreas(ctx, w, h);
@@ -2052,6 +2173,18 @@ export class GameScene extends Scene {
 
     this._renderMinimap(ctx, w, h, level);
 
+    const assistActive = this._assistSettings.invincible === 1 ||
+      this._assistSettings.infiniteJump === 1 ||
+      this._assistSettings.lowGravity === 1 ||
+      (this._assistSettings.gameSpeed || 0) > 0;
+    if (assistActive) {
+      const assistY = h - 25;
+      ctx.font = '300 11px "Segoe UI", system-ui, sans-serif';
+      ctx.fillStyle = 'rgba(255, 107, 53, 0.4)';
+      ctx.textAlign = 'center';
+      ctx.fillText('辅助模式', w / 2, assistY);
+    }
+
     ctx.restore();
   }
 
@@ -2355,6 +2488,10 @@ export class GameScene extends Scene {
   }
 
   _triggerDeath() {
+    if (this._assistSettings.invincible === 1) {
+      this.player.vy = -300;
+      return;
+    }
     this.dying = true;
     this.deathTimer = 0;
     this.deathAlpha = 0;
@@ -3257,6 +3394,22 @@ export class GameScene extends Scene {
       }
     }
 
+    for (const ze of this.zoneEffects) {
+      const zx = mapX + ze.x * scaleX;
+      const zy = mapY + ze.y * scaleY;
+      const zw = Math.max(1, ze.w * scaleX);
+      const zh = Math.max(1, ze.h * scaleY);
+      const zoneColor = ze.type === 'lightOrb' ? '0, 255, 212' :
+                        ze.type === 'lowGravity' ? '138, 43, 226' :
+                        ze.type === 'slowZone' ? '255, 107, 53' :
+                        '255, 0, 68';
+      ctx.fillStyle = `rgba(${zoneColor}, 0.15)`;
+      ctx.fillRect(zx, zy, zw, zh);
+      ctx.strokeStyle = `rgba(${zoneColor}, 0.35)`;
+      ctx.lineWidth = 0.5;
+      ctx.strokeRect(zx, zy, zw, zh);
+    }
+
     const viewX = mapX + (-this.camera.x) * scaleX;
     const viewY = mapY + (-this.camera.y) * scaleY;
     const viewW = GAME_WIDTH * scaleX;
@@ -3861,6 +4014,230 @@ export class GameScene extends Scene {
       ctx.shadowBlur = 15;
       ctx.fillText(this.secretRevealText, cx, cy);
       ctx.shadowBlur = 0;
+
+      ctx.restore();
+    }
+  }
+
+  _updateZoneEffects(dt) {
+    for (const ze of this.zoneEffects) {
+      ze.pulsePhase += dt * 0.003;
+
+      if (ze.type === 'lightOrb') {
+        for (const orb of ze.orbs) {
+          orb.phase += dt * 0.002;
+          orb.x += orb.vx + Math.sin(orb.phase) * 0.2;
+          orb.y += orb.vy + Math.cos(orb.phase * 0.7) * 0.15;
+          if (orb.x < ze.x) orb.vx = Math.abs(orb.vx);
+          if (orb.x > ze.x + ze.w) orb.vx = -Math.abs(orb.vx);
+          if (orb.y < ze.y) orb.vy = Math.abs(orb.vy);
+          if (orb.y > ze.y + ze.h) orb.vy = -Math.abs(orb.vy);
+        }
+      }
+
+      if (ze.type === 'lowGravity' && Math.random() < 0.05) {
+        ze.ripples.push({
+          x: ze.x + Math.random() * ze.w,
+          y: ze.y + Math.random() * ze.h,
+          radius: 0,
+          maxRadius: 30 + Math.random() * 20,
+          alpha: 0.3,
+          life: 1000,
+          maxLife: 1000,
+        });
+      }
+
+      if (ze.type === 'slowZone' && Math.random() < 0.08) {
+        ze.particles.push({
+          x: ze.x + Math.random() * ze.w,
+          y: ze.y + ze.h,
+          vx: (Math.random() - 0.5) * 0.3,
+          vy: -Math.random() * 0.5 - 0.2,
+          size: Math.random() * 2 + 1,
+          alpha: 0.4 + Math.random() * 0.3,
+          life: 1500 + Math.random() * 500,
+          maxLife: 2000,
+        });
+      }
+
+      if (ze.type === 'voidWarp' && Math.random() < 0.1) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Math.random() * Math.min(ze.w, ze.h) * 0.4;
+        ze.particles.push({
+          x: ze.x + ze.w / 2 + Math.cos(angle) * dist,
+          y: ze.y + ze.h / 2 + Math.sin(angle) * dist,
+          vx: Math.cos(angle + Math.PI / 2) * 0.5,
+          vy: Math.sin(angle + Math.PI / 2) * 0.5,
+          size: Math.random() * 2 + 1,
+          alpha: 0.5 + Math.random() * 0.3,
+          life: 800 + Math.random() * 400,
+          maxLife: 1200,
+          isRed: Math.random() > 0.4,
+        });
+      }
+
+      for (let i = ze.particles.length - 1; i >= 0; i--) {
+        const p = ze.particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= dt;
+        p.alpha = Math.max(0, p.life / p.maxLife * 0.6);
+        if (p.life <= 0) {
+          ze.particles.splice(i, 1);
+        }
+      }
+
+      for (let i = ze.ripples.length - 1; i >= 0; i--) {
+        const r = ze.ripples[i];
+        r.radius += dt * 0.02;
+        r.life -= dt;
+        r.alpha = Math.max(0, r.life / r.maxLife * 0.3);
+        if (r.life <= 0 || r.radius > r.maxRadius) {
+          ze.ripples.splice(i, 1);
+        }
+      }
+    }
+  }
+
+  _renderZoneEffects(ctx) {
+    for (const ze of this.zoneEffects) {
+      const pulse = Math.sin(ze.pulsePhase) * 0.3 + 0.7;
+
+      ctx.save();
+
+      switch (ze.type) {
+        case 'lightOrb': {
+          ctx.strokeStyle = `rgba(0, 255, 212, ${0.15 * pulse})`;
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(ze.x, ze.y, ze.w, ze.h);
+
+          ctx.fillStyle = `rgba(0, 255, 212, ${0.03 * pulse})`;
+          ctx.fillRect(ze.x, ze.y, ze.w, ze.h);
+
+          for (const orb of ze.orbs) {
+            const orbPulse = Math.sin(orb.phase) * 0.3 + 0.7;
+            const glow = ctx.createRadialGradient(orb.x, orb.y, 0, orb.x, orb.y, orb.size * 3);
+            glow.addColorStop(0, `rgba(0, 255, 212, ${0.2 * orbPulse})`);
+            glow.addColorStop(1, 'rgba(0, 255, 212, 0)');
+            ctx.fillStyle = glow;
+            ctx.fillRect(orb.x - orb.size * 3, orb.y - orb.size * 3, orb.size * 6, orb.size * 6);
+
+            ctx.beginPath();
+            ctx.arc(orb.x, orb.y, orb.size, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(0, 255, 212, ${0.5 * orbPulse})`;
+            ctx.shadowColor = '#00FFD4';
+            ctx.shadowBlur = 8 * orbPulse;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+          }
+
+          if (ze.playerInside) {
+            const playerGlow = ctx.createRadialGradient(this.player.x, this.player.y - 24, 0, this.player.x, this.player.y - 24, 40);
+            playerGlow.addColorStop(0, `rgba(0, 255, 212, ${0.15 * pulse})`);
+            playerGlow.addColorStop(1, 'rgba(0, 255, 212, 0)');
+            ctx.fillStyle = playerGlow;
+            ctx.fillRect(this.player.x - 40, this.player.y - 64, 80, 80);
+          }
+
+          if (ze.playerInside) {
+            ctx.font = '300 11px "Segoe UI", system-ui, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = `rgba(0, 255, 212, ${0.6 * pulse})`;
+            ctx.fillText('光之领域', ze.x + ze.w / 2, ze.y - 10);
+          }
+          break;
+        }
+
+        case 'lowGravity': {
+          ctx.strokeStyle = `rgba(138, 43, 226, ${0.2 * pulse})`;
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(ze.x, ze.y, ze.w, ze.h);
+
+          ctx.fillStyle = `rgba(138, 43, 226, ${0.04 * pulse})`;
+          ctx.fillRect(ze.x, ze.y, ze.w, ze.h);
+
+          for (const ripple of ze.ripples) {
+            if (ripple.alpha <= 0) continue;
+            ctx.strokeStyle = `rgba(138, 43, 226, ${ripple.alpha})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(ripple.x, ripple.y, ripple.radius, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+
+          if (ze.playerInside) {
+            ctx.font = '300 11px "Segoe UI", system-ui, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = `rgba(138, 43, 226, ${0.6 * pulse})`;
+            ctx.fillText('重力涟漪', ze.x + ze.w / 2, ze.y - 10);
+          }
+          break;
+        }
+
+        case 'slowZone': {
+          ctx.setLineDash([6, 4]);
+          ctx.strokeStyle = `rgba(255, 107, 53, ${0.25 * pulse})`;
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(ze.x, ze.y, ze.w, ze.h);
+          ctx.setLineDash([]);
+
+          ctx.fillStyle = `rgba(255, 107, 53, ${0.03 * pulse})`;
+          ctx.fillRect(ze.x, ze.y, ze.w, ze.h);
+
+          for (const p of ze.particles) {
+            if (p.alpha <= 0) continue;
+            ctx.globalAlpha = p.alpha;
+            ctx.fillStyle = 'rgba(255, 107, 53, 1)';
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.globalAlpha = 1;
+
+          if (ze.playerInside) {
+            ctx.font = '300 11px "Segoe UI", system-ui, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = `rgba(255, 107, 53, ${0.6 * pulse})`;
+            ctx.fillText('时间裂隙', ze.x + ze.w / 2, ze.y - 10);
+          }
+          break;
+        }
+
+        case 'voidWarp': {
+          const warpPulse = Math.sin(ze.pulsePhase * 2) * 0.4 + 0.6;
+          ctx.strokeStyle = `rgba(255, 0, 68, ${0.2 * warpPulse})`;
+          ctx.lineWidth = 2;
+          ctx.shadowColor = '#FF0044';
+          ctx.shadowBlur = 6 * warpPulse;
+          ctx.strokeRect(ze.x, ze.y, ze.w, ze.h);
+          ctx.shadowBlur = 0;
+
+          ctx.fillStyle = `rgba(255, 0, 68, ${0.03 * warpPulse})`;
+          ctx.fillRect(ze.x, ze.y, ze.w, ze.h);
+
+          for (const p of ze.particles) {
+            if (p.alpha <= 0) continue;
+            ctx.globalAlpha = p.alpha;
+            ctx.fillStyle = p.isRed ? 'rgba(255, 0, 68, 1)' : 'rgba(80, 0, 120, 1)';
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.globalAlpha = 1;
+
+          if (ze.playerInside) {
+            ctx.font = '300 11px "Segoe UI", system-ui, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = `rgba(255, 0, 68, ${0.6 * warpPulse})`;
+            ctx.fillText('虚空之触', ze.x + ze.w / 2, ze.y - 10);
+          }
+          break;
+        }
+      }
 
       ctx.restore();
     }

@@ -98,24 +98,24 @@ export class LevelData {
         },
         {
           type: 'lightSource',
-          x: 950,
-          y: 352,
+          x: 920,
+          y: 440,
           config: {
             id: 'l1_ls1',
-            lightDir: { x: 1, y: -0.3 },
+            lightDir: { x: 1, y: 0 },
             lightRange: 400,
           },
         },
         {
           type: 'lightMirror',
           x: 1100,
-          y: 432,
-          config: { id: 'l1_lm1', angle: 150 },
+          y: 440,
+          config: { id: 'l1_lm1', angle: 270 },
         },
         {
           type: 'lightTarget',
           x: 1100,
-          y: 340,
+          y: 320,
           config: { id: 'l1_lt1' },
         },
         {
@@ -200,6 +200,11 @@ export class LevelData {
           revealText: '发现隐藏记忆',
         },
       ],
+      zoneEffects: [
+        { type: 'lightOrb', x: 350, y: 400, w: 250, h: 180, orbCount: 5 },
+        { type: 'lightOrb', x: 950, y: 280, w: 200, h: 200, orbCount: 4 },
+        { type: 'lightOrb', x: 1700, y: 360, w: 220, h: 200, orbCount: 6 },
+      ],
     };
   }
 
@@ -274,23 +279,23 @@ export class LevelData {
         {
           type: 'lightSource',
           x: 740,
-          y: 362,
+          y: 452,
           config: {
             id: 'l2_ls1',
-            lightDir: { x: 1, y: -0.2 },
-            lightRange: 350,
+            lightDir: { x: 1, y: 0 },
+            lightRange: 400,
           },
         },
         {
           type: 'lightMirror',
           x: 1080,
           y: 452,
-          config: { id: 'l2_lm1', angle: 135 },
+          config: { id: 'l2_lm1', angle: 270 },
         },
         {
           type: 'lightTarget',
           x: 1080,
-          y: 360,
+          y: 340,
           config: { id: 'l2_lt1' },
         },
         {
@@ -382,6 +387,11 @@ export class LevelData {
           revealText: '发现隐藏记忆',
         },
       ],
+      zoneEffects: [
+        { type: 'lowGravity', x: 480, y: 300, w: 220, h: 220, gravityScale: 0.5 },
+        { type: 'lowGravity', x: 1160, y: 280, w: 200, h: 220, gravityScale: 0.5 },
+        { type: 'lowGravity', x: 1980, y: 200, w: 220, h: 240, gravityScale: 0.5 },
+      ],
     };
   }
 
@@ -460,23 +470,23 @@ export class LevelData {
         {
           type: 'lightSource',
           x: 680,
-          y: 432,
+          y: 532,
           config: {
             id: 'l3_ls1',
-            lightDir: { x: -1, y: -0.4 },
-            lightRange: 300,
+            lightDir: { x: 1, y: 0 },
+            lightRange: 400,
           },
         },
         {
           type: 'lightMirror',
           x: 1020,
           y: 532,
-          config: { id: 'l3_lm1', angle: 120 },
+          config: { id: 'l3_lm1', angle: 270 },
         },
         {
           type: 'lightTarget',
           x: 1020,
-          y: 440,
+          y: 420,
           config: { id: 'l3_lt1' },
         },
         {
@@ -573,6 +583,11 @@ export class LevelData {
           revealText: '发现隐藏记忆',
         },
       ],
+      zoneEffects: [
+        { type: 'slowZone', x: 560, y: 380, w: 200, h: 220, speedScale: 0.6 },
+        { type: 'slowZone', x: 1260, y: 300, w: 200, h: 240, speedScale: 0.6 },
+        { type: 'slowZone', x: 2100, y: 380, w: 220, h: 220, speedScale: 0.6 },
+      ],
     };
   }
 
@@ -657,23 +672,23 @@ export class LevelData {
         {
           type: 'lightSource',
           x: 700,
-          y: 712,
+          y: 552,
           config: {
             id: 'l4_ls1',
-            lightDir: { x: 1, y: -0.5 },
-            lightRange: 280,
+            lightDir: { x: 1, y: 0 },
+            lightRange: 400,
           },
         },
         {
           type: 'lightMirror',
           x: 1040,
           y: 552,
-          config: { id: 'l4_lm1', angle: 160 },
+          config: { id: 'l4_lm1', angle: 270 },
         },
         {
           type: 'lightTarget',
           x: 1040,
-          y: 460,
+          y: 440,
           config: { id: 'l4_lt1' },
         },
         {
@@ -759,6 +774,11 @@ export class LevelData {
           narrativeFragment: { id: 'd4_secret1', text: '那由他不是距离，是你与真实之间的裂隙', hint: '真实之隙...', shape: 'diamond', color: '255, 0, 68', size: 10 },
           revealText: '发现隐藏记忆',
         },
+      ],
+      zoneEffects: [
+        { type: 'voidWarp', x: 300, y: 580, w: 180, h: 200, warpGroupId: 'l4_wg1' },
+        { type: 'voidWarp', x: 1380, y: 500, w: 180, h: 220, warpGroupId: 'l4_wg1' },
+        { type: 'voidWarp', x: 2480, y: 540, w: 180, h: 220, warpGroupId: 'l4_wg1' },
       ],
     };
   }

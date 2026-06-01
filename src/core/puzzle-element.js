@@ -56,6 +56,9 @@ export class PuzzleElement {
   }
 
   _updateLightSource(puzzleManager) {
+    if (!this.activated && this.config.autoActivate !== false) {
+      this.activated = true;
+    }
     if (this.activated) {
       this._castLight(puzzleManager);
     }
