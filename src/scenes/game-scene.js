@@ -85,6 +85,14 @@ export class GameScene extends Scene {
     this.portalParticles = [];
     this.waterReflectionTime = 0;
     this.camera = new Camera();
+    this.hazards = [];
+    this.hazardTime = 0;
+    this.lavaParticles = [];
+    this.voidRiftPulses = [];
+    this.weatherParticles = [];
+    this.weatherVortices = [];
+    this.weatherLightning = [];
+    this.weatherTime = 0;
   }
 
   init() {
@@ -156,6 +164,26 @@ export class GameScene extends Scene {
     }
     this.portalCooldown = 0;
     this.portalParticles = [];
+
+    this.hazards = [];
+    for (const hz of (level.hazards || [])) {
+      this.hazards.push({
+        type: hz.type,
+        x: hz.x,
+        y: hz.y,
+        w: hz.w,
+        h: hz.h,
+        cycleDuration: hz.cycleDuration || 4000,
+        phase: Math.random() * Math.PI * 2,
+        active: hz.type !== 'voidRift',
+        timer: 0,
+      });
+    }
+    this.lavaParticles = [];
+    this.voidRiftPulses = [];
+    this.hazardTime = 0;
+
+    this._initWeather(level);
 
     this.player.x = level.playerStart.x;
     this.player.y = level.playerStart.y;
@@ -250,6 +278,12 @@ export class GameScene extends Scene {
     this.movingPlatforms = [];
     this.portals = [];
     this.portalParticles = [];
+    this.hazards = [];
+    this.lavaParticles = [];
+    this.voidRiftPulses = [];
+    this.weatherParticles = [];
+    this.weatherVortices = [];
+    this.weatherLightning = [];
   }
 
   _generateParticles(level) {
@@ -487,6 +521,12 @@ export class GameScene extends Scene {
 
     this.camera.follow(this.player.x, this.player.y - 24, this.player.facing);
     this.camera.update(dt);
+
+    this._updateHazards(dt);
+    this._updateWeather(dt);
+    if (!this.dying && !this.respawning) {
+      this._checkHazardCollisions();
+    }
 
     const deathY = (this.currentLevel ? (this.currentLevel.height || 720) : 720) + 50;
     if (this.player.y > deathY && !this.dying && !this.respawning) {
@@ -893,9 +933,11 @@ export class GameScene extends Scene {
     this._renderMovingPlatforms(ctx, w, h, level);
     this._renderAnchors(ctx, w, h);
     this._renderPortals(ctx, w, h);
+    this._renderHazards(ctx, w, h);
     this.narrativeSystem.renderFragments(ctx);
     this.puzzleManager.render(ctx);
     this._renderParticles(ctx, w, h, level);
+    this._renderWeather(ctx, w, h, level);
     this._renderPlayerTrail(ctx);
     this._renderLandingParticles(ctx);
     this._renderPlayer(ctx, w, h);
@@ -1743,6 +1785,8 @@ export class GameScene extends Scene {
     ctx.fillStyle = 'rgba(107, 107, 141, 0.6)';
     ctx.fillText(level.name, w - 30, this.deathCount > 0 ? 64 : 48);
 
+    this._renderMinimap(ctx, w, h, level);
+
     ctx.restore();
   }
 
@@ -2411,6 +2455,564 @@ export class GameScene extends Scene {
       ctx.textBaseline = 'middle';
       ctx.fillText(btn.label, btn.x, btn.y);
     }
+
+    ctx.restore();
+  }
+
+  _updateHazards(dt) {
+    this.hazardTime += dt;
+
+    for (const hz of this.hazards) {
+      if (hz.type === 'voidRift') {
+        hz.timer += dt;
+        const cycle = hz.timer % hz.cycleDuration;
+        hz.active = cycle < hz.cycleDuration * 0.6;
+
+        if (hz.active && Math.random() < 0.15) {
+          this.voidRiftPulses.push({
+            x: hz.x + Math.random() * hz.w,
+            y: hz.y + Math.random() * hz.h,
+            radius: 0,
+            maxRadius: 20 + Math.random() * 15,
+            alpha: 0.4,
+            life: 600,
+          });
+        }
+      }
+    }
+
+    for (let i = this.lavaParticles.length - 1; i >= 0; i--) {
+      const p = this.lavaParticles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy -= 0.02;
+      p.life -= dt;
+      p.alpha = Math.max(0, p.life / p.maxLife);
+      if (p.life <= 0) {
+        this.lavaParticles.splice(i, 1);
+      }
+    }
+
+    for (const hz of this.hazards) {
+      if (hz.type === 'lava' && Math.random() < 0.08) {
+        this.lavaParticles.push({
+          x: hz.x + Math.random() * hz.w,
+          y: hz.y,
+          vx: (Math.random() - 0.5) * 0.5,
+          vy: -Math.random() * 1.5 - 0.5,
+          size: Math.random() * 3 + 1,
+          alpha: 0.8,
+          life: 400 + Math.random() * 400,
+          maxLife: 800,
+        });
+      }
+    }
+
+    for (let i = this.voidRiftPulses.length - 1; i >= 0; i--) {
+      const p = this.voidRiftPulses[i];
+      p.radius += dt * 0.03;
+      p.life -= dt;
+      p.alpha = Math.max(0, p.life / 600) * 0.4;
+      if (p.life <= 0 || p.radius > p.maxRadius) {
+        this.voidRiftPulses.splice(i, 1);
+      }
+    }
+  }
+
+  _checkHazardCollisions() {
+    const playerW = 16;
+    const playerH = 48;
+    const px = this.player.x - playerW / 2;
+    const py = this.player.y - playerH;
+
+    for (const hz of this.hazards) {
+      if (!hz.active) continue;
+
+      const hitBox = {
+        x: hz.x,
+        y: hz.type === 'spike' ? hz.y - 10 : hz.y,
+        w: hz.w,
+        h: hz.type === 'spike' ? hz.h + 10 : hz.h,
+      };
+
+      if (px + playerW > hitBox.x &&
+          px < hitBox.x + hitBox.w &&
+          py + playerH > hitBox.y &&
+          py < hitBox.y + hitBox.h) {
+        this._triggerDeath();
+        return;
+      }
+    }
+  }
+
+  _renderHazards(ctx, w, h) {
+    for (const hz of this.hazards) {
+      switch (hz.type) {
+        case 'spike':
+          this._renderSpike(ctx, hz);
+          break;
+        case 'lava':
+          this._renderLava(ctx, hz);
+          break;
+        case 'voidRift':
+          this._renderVoidRift(ctx, hz);
+          break;
+      }
+    }
+
+    for (const p of this.lavaParticles) {
+      if (p.alpha <= 0) continue;
+      ctx.save();
+      ctx.globalAlpha = p.alpha;
+      const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 2);
+      gradient.addColorStop(0, 'rgba(255, 200, 50, 0.8)');
+      gradient.addColorStop(0.5, 'rgba(255, 107, 53, 0.4)');
+      gradient.addColorStop(1, 'rgba(255, 50, 20, 0)');
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    for (const p of this.voidRiftPulses) {
+      if (p.alpha <= 0) continue;
+      ctx.save();
+      ctx.globalAlpha = p.alpha;
+      ctx.strokeStyle = COLORS.VOID_ORANGE;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  _renderSpike(ctx, hz) {
+    const spikeCount = Math.floor(hz.w / 10);
+    const spikeW = hz.w / spikeCount;
+
+    ctx.save();
+    for (let i = 0; i < spikeCount; i++) {
+      const sx = hz.x + i * spikeW;
+      const tipX = sx + spikeW / 2;
+      const tipY = hz.y - 10;
+      const pulse = Math.sin(this.hazardTime * 0.003 + i * 0.5) * 0.15 + 0.85;
+
+      ctx.beginPath();
+      ctx.moveTo(sx, hz.y + hz.h);
+      ctx.lineTo(tipX, tipY);
+      ctx.lineTo(sx + spikeW, hz.y + hz.h);
+      ctx.closePath();
+
+      const isDeep = this.depth >= 2;
+      const baseColor = isDeep ? '255, 107, 53' : '0, 255, 212';
+      ctx.fillStyle = `rgba(${baseColor}, ${0.4 * pulse})`;
+      ctx.fill();
+      ctx.strokeStyle = `rgba(${baseColor}, ${0.7 * pulse})`;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    const glowColor = this.depth >= 2 ? '255, 107, 53' : '0, 255, 212';
+    const glow = ctx.createRadialGradient(
+      hz.x + hz.w / 2, hz.y - 5, 0,
+      hz.x + hz.w / 2, hz.y - 5, hz.w * 0.6
+    );
+    glow.addColorStop(0, `rgba(${glowColor}, 0.06)`);
+    glow.addColorStop(1, `rgba(${glowColor}, 0)`);
+    ctx.fillStyle = glow;
+    ctx.fillRect(hz.x - hz.w * 0.3, hz.y - hz.w * 0.6, hz.w * 1.6, hz.w * 0.6 + hz.h + 5);
+
+    ctx.restore();
+  }
+
+  _renderLava(ctx, hz) {
+    const t = this.hazardTime / 1000;
+    const pulse = Math.sin(t * 2) * 0.15 + 0.85;
+
+    ctx.save();
+
+    const gradient = ctx.createLinearGradient(hz.x, hz.y, hz.x, hz.y + hz.h);
+    gradient.addColorStop(0, `rgba(255, 200, 50, ${0.7 * pulse})`);
+    gradient.addColorStop(0.4, `rgba(255, 107, 53, ${0.6 * pulse})`);
+    gradient.addColorStop(1, `rgba(200, 30, 10, ${0.5 * pulse})`);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(hz.x, hz.y, hz.w, hz.h);
+
+    ctx.strokeStyle = `rgba(255, 200, 50, ${0.3 * pulse})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let x = hz.x; x < hz.x + hz.w; x += 4) {
+      const waveY = hz.y + Math.sin(x * 0.05 + t * 3) * 2;
+      if (x === hz.x) ctx.moveTo(x, waveY);
+      else ctx.lineTo(x, waveY);
+    }
+    ctx.stroke();
+
+    const glow = ctx.createRadialGradient(
+      hz.x + hz.w / 2, hz.y, 0,
+      hz.x + hz.w / 2, hz.y, hz.w * 0.4
+    );
+    glow.addColorStop(0, `rgba(255, 150, 30, ${0.08 * pulse})`);
+    glow.addColorStop(1, 'rgba(255, 107, 53, 0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(hz.x - hz.w * 0.2, hz.y - hz.w * 0.4, hz.w * 1.4, hz.w * 0.4 + hz.h);
+
+    ctx.restore();
+  }
+
+  _renderVoidRift(ctx, hz) {
+    const t = this.hazardTime / 1000;
+    const cycle = hz.timer % hz.cycleDuration;
+    const cycleRatio = cycle / hz.cycleDuration;
+
+    ctx.save();
+
+    const fadeIn = Math.min(1, cycleRatio * 5);
+    const fadeOut = cycleRatio > 0.6 ? Math.max(0, 1 - (cycleRatio - 0.6) / 0.4) : 1;
+    const visibility = hz.active ? fadeIn * fadeOut : 0;
+
+    if (visibility > 0.01) {
+      const pulse = Math.sin(t * 4 + hz.phase) * 0.2 + 0.8;
+
+      const gradient = ctx.createLinearGradient(hz.x, hz.y, hz.x + hz.w, hz.y + hz.h);
+      gradient.addColorStop(0, `rgba(255, 0, 68, ${0.5 * visibility * pulse})`);
+      gradient.addColorStop(0.5, `rgba(80, 0, 40, ${0.8 * visibility * pulse})`);
+      gradient.addColorStop(1, `rgba(255, 107, 53, ${0.4 * visibility * pulse})`);
+      ctx.fillStyle = gradient;
+      ctx.fillRect(hz.x, hz.y, hz.w, hz.h);
+
+      ctx.strokeStyle = `rgba(255, 107, 53, ${0.5 * visibility * pulse})`;
+      ctx.lineWidth = 1.5;
+      ctx.shadowColor = '#FF6B35';
+      ctx.shadowBlur = 8 * visibility;
+      ctx.strokeRect(hz.x, hz.y, hz.w, hz.h);
+      ctx.shadowBlur = 0;
+
+      const glow = ctx.createRadialGradient(
+        hz.x + hz.w / 2, hz.y + hz.h / 2, 0,
+        hz.x + hz.w / 2, hz.y + hz.h / 2, hz.w
+      );
+      glow.addColorStop(0, `rgba(255, 0, 68, ${0.1 * visibility * pulse})`);
+      glow.addColorStop(0.5, `rgba(255, 107, 53, ${0.04 * visibility})`);
+      glow.addColorStop(1, 'rgba(255, 0, 68, 0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(hz.x - hz.w, hz.y - hz.w, hz.w * 3, hz.h + hz.w * 2);
+    } else {
+      const warningPulse = Math.sin(t * 6 + hz.phase) * 0.5 + 0.5;
+      const warningAlpha = 0.08 * warningPulse * (1 - cycleRatio);
+      if (warningAlpha > 0.005) {
+        ctx.strokeStyle = `rgba(255, 0, 68, ${warningAlpha})`;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.strokeRect(hz.x - 2, hz.y - 2, hz.w + 4, hz.h + 4);
+        ctx.setLineDash([]);
+      }
+    }
+
+    ctx.restore();
+  }
+
+  _initWeather(level) {
+    this.weatherParticles = [];
+    this.weatherVortices = [];
+    this.weatherLightning = [];
+    this.weatherTime = 0;
+
+    const lw = level.width || 1280;
+    const lh = level.height || 720;
+    const windStrength = 0.5 + this.depth * 0.4;
+    const rainCount = this.depth >= 1 ? 30 + this.depth * 20 : 15;
+    const dustCount = 20 + this.depth * 10;
+
+    for (let i = 0; i < rainCount; i++) {
+      this.weatherParticles.push({
+        type: 'rain',
+        x: Math.random() * lw,
+        y: Math.random() * lh,
+        vx: windStrength * (1 + Math.random()),
+        vy: 3 + Math.random() * 5,
+        size: 0.5 + Math.random(),
+        alpha: 0.15 + Math.random() * 0.2,
+        length: 6 + Math.random() * 12,
+      });
+    }
+
+    for (let i = 0; i < dustCount; i++) {
+      this.weatherParticles.push({
+        type: 'dust',
+        x: Math.random() * lw,
+        y: Math.random() * lh,
+        vx: (Math.random() - 0.5) * windStrength,
+        vy: (Math.random() - 0.5) * 0.5,
+        size: 1.5 + Math.random() * 2.5,
+        alpha: 0.05 + Math.random() * 0.1,
+        phase: Math.random() * Math.PI * 2,
+      });
+    }
+
+    const vortexCount = Math.max(1, this.depth);
+    for (let i = 0; i < vortexCount; i++) {
+      this.weatherVortices.push({
+        x: Math.random() * lw,
+        y: Math.random() * lh * 0.6 + lh * 0.2,
+        strength: (0.3 + Math.random() * 0.5) * (Math.random() > 0.5 ? 1 : -1),
+        radius: 60 + Math.random() * 100,
+        driftX: (Math.random() - 0.5) * 0.2,
+        driftY: (Math.random() - 0.5) * 0.1,
+        phase: Math.random() * Math.PI * 2,
+      });
+    }
+  }
+
+  _updateWeather(dt) {
+    const dtSec = dt / 1000;
+    this.weatherTime += dtSec;
+    const lw = this.currentLevel ? (this.currentLevel.width || 1280) : 1280;
+    const lh = this.currentLevel ? (this.currentLevel.height || 720) : 720;
+
+    for (const v of this.weatherVortices) {
+      v.x += v.driftX + Math.sin(this.weatherTime * 0.2 + v.phase) * 0.2;
+      v.y += v.driftY + Math.cos(this.weatherTime * 0.15 + v.phase) * 0.1;
+      if (v.x < -50) v.x = lw + 50;
+      if (v.x > lw + 50) v.x = -50;
+      if (v.y < -50) v.y = lh + 50;
+      if (v.y > lh + 50) v.y = -50;
+    }
+
+    for (const p of this.weatherParticles) {
+      let windX = 0, windY = 0;
+      const windBase = 0.5 + this.depth * 0.4;
+
+      for (const v of this.weatherVortices) {
+        const dx = p.x - v.x;
+        const dy = p.y - v.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < v.radius && dist > 1) {
+          const force = v.strength * (1 - dist / v.radius) * windBase * 0.3;
+          windX += (-dy / dist) * force;
+          windY += (dx / dist) * force;
+        }
+      }
+
+      if (p.type === 'rain') {
+        p.vx = p.vx * 0.9 + (windBase + windX) * 0.1;
+        p.vy += 0.05;
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.y > lh + 10 || p.x > lw + 10) {
+          p.x = Math.random() * lw;
+          p.y = -10;
+          p.vx = windBase;
+        }
+      } else if (p.type === 'dust') {
+        p.vx = p.vx * 0.98 + (windX + (Math.random() - 0.5) * 0.2) * 0.02;
+        p.vy = p.vy * 0.98 + (windY + (Math.random() - 0.5) * 0.1) * 0.02;
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.x < -10) p.x = lw + 10;
+        if (p.x > lw + 10) p.x = -10;
+        if (p.y < -10) p.y = lh + 10;
+        if (p.y > lh + 10) p.y = -10;
+      }
+    }
+
+    if (this.depth >= 2 && Math.random() < 0.002 * (this.depth - 1)) {
+      const startX = Math.random() * lw;
+      const segments = [];
+      let cx = startX, cy = 0;
+      const steps = 5 + Math.floor(Math.random() * 4);
+      for (let i = 0; i < steps; i++) {
+        const nx = cx + (Math.random() - 0.5) * 60;
+        const ny = cy + lh / steps * (0.5 + Math.random() * 0.5);
+        segments.push({ x1: cx, y1: cy, x2: nx, y2: ny });
+        cx = nx; cy = ny;
+      }
+      this.weatherLightning.push({ segments, alpha: 1, life: 200 });
+      if (this.audio) this.audio.playSFX('erosionGlitch');
+    }
+
+    for (let i = this.weatherLightning.length - 1; i >= 0; i--) {
+      const bolt = this.weatherLightning[i];
+      bolt.life -= dt;
+      bolt.alpha = Math.max(0, bolt.life / 200);
+      if (bolt.life <= 0) this.weatherLightning.splice(i, 1);
+    }
+  }
+
+  _renderWeather(ctx, w, h, level) {
+    const lw = level.width || 1280;
+    const lh = level.height || 720;
+
+    for (const p of this.weatherParticles) {
+      if (p.type === 'rain') {
+        const depthMix = this.depth / 3;
+        const r = Math.floor(0 + depthMix * 255);
+        const g = Math.floor(255 - depthMix * 148);
+        const b = Math.floor(212 - depthMix * 159);
+        ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${p.alpha})`;
+        ctx.lineWidth = p.size * 0.5;
+        ctx.beginPath();
+        const endX = p.x - p.vx * (p.length / Math.max(1, p.vy));
+        const endY = p.y - p.length;
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+      } else if (p.type === 'dust') {
+        const depthMix = this.depth / 3;
+        const pulse = Math.sin(this.weatherTime * 2 + p.phase) * 0.5 + 0.5;
+        const r = Math.floor(0 + depthMix * 255);
+        const g = Math.floor(255 - depthMix * 148);
+        const b = Math.floor(212 - depthMix * 159);
+        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${p.alpha * (0.5 + pulse * 0.5)})`;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    for (const bolt of this.weatherLightning) {
+      if (bolt.alpha < 0.01) continue;
+      const depthMix = this.depth / 3;
+      const r = Math.floor(0 + depthMix * 255);
+      const g = Math.floor(255 - depthMix * 148);
+      const b = Math.floor(212 - depthMix * 159);
+
+      ctx.save();
+      ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${bolt.alpha * 0.6})`;
+      ctx.lineWidth = 2 * bolt.alpha;
+      ctx.shadowColor = `rgb(${r}, ${g}, ${b})`;
+      ctx.shadowBlur = 10 * bolt.alpha;
+      ctx.beginPath();
+      for (const seg of bolt.segments) {
+        ctx.moveTo(seg.x1, seg.y1);
+        ctx.lineTo(seg.x2, seg.y2);
+      }
+      ctx.stroke();
+
+      ctx.strokeStyle = `rgba(255, 255, 255, ${bolt.alpha * 0.3})`;
+      ctx.lineWidth = 4 * bolt.alpha;
+      ctx.shadowBlur = 0;
+      ctx.beginPath();
+      for (const seg of bolt.segments) {
+        ctx.moveTo(seg.x1, seg.y1);
+        ctx.lineTo(seg.x2, seg.y2);
+      }
+      ctx.stroke();
+      ctx.restore();
+
+      if (bolt.alpha > 0.5) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${bolt.alpha * 0.03})`;
+        ctx.fillRect(0, 0, w, h);
+      }
+    }
+  }
+
+  _renderMinimap(ctx, w, h, level) {
+    const mapW = 120;
+    const mapH = 70;
+    const mapX = w - mapW - 15;
+    const mapY = h - mapH - 15;
+    const lw = level.width || 1280;
+    const lh = level.height || 720;
+    const scaleX = mapW / lw;
+    const scaleY = mapH / lh;
+
+    ctx.save();
+
+    ctx.fillStyle = 'rgba(10, 14, 26, 0.6)';
+    ctx.strokeStyle = 'rgba(0, 255, 212, 0.15)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(mapX - 4, mapY - 4, mapW + 8, mapH + 8, 4);
+    ctx.fill();
+    ctx.stroke();
+
+    for (const plat of this.platforms) {
+      const px = mapX + plat.x * scaleX;
+      const py = mapY + plat.y * scaleY;
+      const pw = Math.max(1, plat.w * scaleX);
+      const ph = Math.max(1, plat.h * scaleY);
+      ctx.fillStyle = 'rgba(107, 107, 141, 0.3)';
+      ctx.fillRect(px, py, pw, ph);
+    }
+
+    for (const mp of this.movingPlatforms) {
+      const px = mapX + mp.x * scaleX;
+      const py = mapY + mp.y * scaleY;
+      const pw = Math.max(1, mp.w * scaleX);
+      const ph = Math.max(1, mp.h * scaleY);
+      ctx.fillStyle = 'rgba(0, 136, 255, 0.3)';
+      ctx.fillRect(px, py, pw, ph);
+    }
+
+    for (const anchor of this.anchors) {
+      if (anchor.collected) continue;
+      const ax = mapX + anchor.x * scaleX;
+      const ay = mapY + anchor.y * scaleY;
+      const pulse = Math.sin(this.time * 0.004 + anchor.pulse) * 0.3 + 0.7;
+      ctx.fillStyle = `rgba(0, 255, 212, ${0.5 * pulse})`;
+      ctx.beginPath();
+      ctx.arc(ax, ay, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    for (const hz of this.hazards) {
+      if (!hz.active && hz.type === 'voidRift') continue;
+      const hx = mapX + hz.x * scaleX;
+      const hy = mapY + hz.y * scaleY;
+      const hw = Math.max(1, hz.w * scaleX);
+      const hh = Math.max(1, hz.h * scaleY);
+      ctx.fillStyle = hz.type === 'lava' ? 'rgba(255, 107, 53, 0.4)' :
+                      hz.type === 'voidRift' ? 'rgba(255, 0, 68, 0.4)' :
+                      'rgba(255, 107, 53, 0.3)';
+      ctx.fillRect(hx, hy, hw, hh);
+    }
+
+    for (const portal of this.portals) {
+      const ptx = mapX + portal.x * scaleX;
+      const pty = mapY + portal.y * scaleY;
+      ctx.fillStyle = 'rgba(0, 136, 255, 0.5)';
+      ctx.beginPath();
+      ctx.arc(ptx, pty, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    const viewX = mapX + (-this.camera.x) * scaleX;
+    const viewY = mapY + (-this.camera.y) * scaleY;
+    const viewW = GAME_WIDTH * scaleX;
+    const viewH = GAME_HEIGHT * scaleY;
+    ctx.strokeStyle = 'rgba(232, 230, 240, 0.2)';
+    ctx.lineWidth = 0.5;
+    ctx.strokeRect(viewX, viewY, viewW, viewH);
+
+    const playerMapX = mapX + this.player.x * scaleX;
+    const playerMapY = mapY + (this.player.y - 24) * scaleY;
+    const playerPulse = Math.sin(this.time * 0.005) * 0.3 + 0.7;
+
+    ctx.fillStyle = `rgba(0, 255, 212, ${0.15 * playerPulse})`;
+    ctx.beginPath();
+    ctx.arc(playerMapX, playerMapY, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = COLORS.FLUORESCENT_CYAN;
+    ctx.shadowColor = COLORS.FLUORESCENT_CYAN;
+    ctx.shadowBlur = 4;
+    ctx.beginPath();
+    ctx.arc(playerMapX, playerMapY, 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    const dirLen = 6;
+    const dirX = playerMapX + this.player.facing * dirLen;
+    const dirY = playerMapY;
+    ctx.strokeStyle = COLORS.FLUORESCENT_CYAN;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(playerMapX, playerMapY);
+    ctx.lineTo(dirX, dirY);
+    ctx.stroke();
 
     ctx.restore();
   }

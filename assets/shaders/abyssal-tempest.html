@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Abyssal Tempest — 深渊暴风</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --anthropic-dark: #141413;
+            --anthropic-light: #faf9f5;
+            --anthropic-mid-gray: #b0aea5;
+            --anthropic-light-gray: #e8e6dc;
+            --anthropic-orange: #d97757;
+            --anthropic-blue: #6a9bcc;
+            --anthropic-green: #788c5d;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, var(--anthropic-light) 0%, #f5f3ee 100%);
+            min-height: 100vh;
+            color: var(--anthropic-dark);
+        }
+        .container { display: flex; min-height: 100vh; padding: 20px; gap: 20px; }
+        .sidebar {
+            width: 320px; flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 24px; border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(20, 20, 19, 0.1);
+            overflow-y: auto; overflow-x: hidden;
+        }
+        .sidebar h1 { font-family: 'Lora', serif; font-size: 24px; font-weight: 500; color: var(--anthropic-dark); margin-bottom: 8px; }
+        .sidebar .subtitle { color: var(--anthropic-mid-gray); font-size: 14px; margin-bottom: 32px; line-height: 1.4; }
+        .control-section { margin-bottom: 32px; }
+        .control-section h3 { font-size: 16px; font-weight: 600; color: var(--anthropic-dark); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .control-section h3::before { content: '•'; color: var(--anthropic-orange); font-weight: bold; }
+        .seed-input {
+            width: 100%; background: var(--anthropic-light); padding: 12px;
+            border-radius: 8px; font-family: 'Courier New', monospace; font-size: 14px;
+            margin-bottom: 12px; border: 1px solid var(--anthropic-light-gray); text-align: center;
+        }
+        .seed-input:focus { outline: none; border-color: var(--anthropic-orange); box-shadow: 0 0 0 2px rgba(217, 119, 87, 0.1); background: white; }
+        .seed-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+        .regen-button { margin-bottom: 0; }
+        .control-group { margin-bottom: 20px; }
+        .control-group label { display: block; font-size: 14px; font-weight: 500; color: var(--anthropic-dark); margin-bottom: 8px; }
+        .slider-container { display: flex; align-items: center; gap: 12px; }
+        .slider-container input[type="range"] { flex: 1; height: 4px; background: var(--anthropic-light-gray); border-radius: 2px; outline: none; -webkit-appearance: none; }
+        .slider-container input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; background: var(--anthropic-orange); border-radius: 50%; cursor: pointer; transition: all 0.2s ease; }
+        .slider-container input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.1); background: #c86641; }
+        .slider-container input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; background: var(--anthropic-orange); border-radius: 50%; border: none; cursor: pointer; }
+        .value-display { font-family: 'Courier New', monospace; font-size: 12px; color: var(--anthropic-mid-gray); min-width: 60px; text-align: right; }
+        .color-group { margin-bottom: 16px; }
+        .color-group label { display: block; font-size: 12px; color: var(--anthropic-mid-gray); margin-bottom: 4px; }
+        .color-picker-container { display: flex; align-items: center; gap: 8px; }
+        .color-picker-container input[type="color"] { width: 32px; height: 32px; border: none; border-radius: 6px; cursor: pointer; background: none; padding: 0; }
+        .color-value { font-family: 'Courier New', monospace; font-size: 12px; color: var(--anthropic-mid-gray); }
+        .button { background: var(--anthropic-orange); color: white; border: none; padding: 10px 16px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s ease; width: 100%; }
+        .button:hover { background: #c86641; transform: translateY(-1px); }
+        .button:active { transform: translateY(0); }
+        .button.secondary { background: var(--anthropic-blue); }
+        .button.secondary:hover { background: #5a8bb8; }
+        .button.tertiary { background: var(--anthropic-green); }
+        .button.tertiary:hover { background: #6b7b52; }
+        .button-row { display: flex; gap: 8px; }
+        .button-row .button { flex: 1; }
+        .canvas-area { flex: 1; display: flex; align-items: center; justify-content: center; min-width: 0; }
+        #canvas-container { width: 100%; max-width: 1000px; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 40px rgba(20, 20, 19, 0.1); background: #0A0E1A; }
+        #canvas-container canvas { display: block; width: 100% !important; height: auto !important; }
+        .loading { display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--anthropic-mid-gray); }
+        @media (max-width: 600px) { .container { flex-direction: column; } .sidebar { width: 100%; } .canvas-area { padding: 20px; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h1>Abyssal Tempest</h1>
+            <div class="subtitle">深渊暴风 — 记忆碎裂产生的气象现象</div>
+            <div class="control-section">
+                <h3>Seed</h3>
+                <input type="number" id="seed-input" class="seed-input" value="42" onchange="updateSeed()">
+                <div class="seed-controls">
+                    <button class="button secondary" onclick="previousSeed()">← Prev</button>
+                    <button class="button secondary" onclick="nextSeed()">Next →</button>
+                </div>
+                <button class="button tertiary regen-button" onclick="randomSeedAndUpdate()">↻ Random</button>
+            </div>
+            <div class="control-section">
+                <h3>Parameters</h3>
+                <div class="control-group">
+                    <label>粒子数</label>
+                    <div class="slider-container">
+                        <input type="range" id="particleCount" min="200" max="2000" step="100" value="800" oninput="updateParam('particleCount', this.value)">
+                        <span class="value-display" id="particleCount-value">800</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>风场强度</label>
+                    <div class="slider-container">
+                        <input type="range" id="windStrength" min="0.5" max="4.0" step="0.1" value="1.5" oninput="updateParam('windStrength', this.value)">
+                        <span class="value-display" id="windStrength-value">1.5</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>涡旋密度</label>
+                    <div class="slider-container">
+                        <input type="range" id="vortexDensity" min="1" max="8" step="1" value="4" oninput="updateParam('vortexDensity', this.value)">
+                        <span class="value-display" id="vortexDensity-value">4</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>闪电频率</label>
+                    <div class="slider-container">
+                        <input type="range" id="lightningFreq" min="0.001" max="0.05" step="0.001" value="0.015" oninput="updateParam('lightningFreq', this.value)">
+                        <span class="value-display" id="lightningFreq-value">0.015</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>侵蚀强度</label>
+                    <div class="slider-container">
+                        <input type="range" id="erosionIntensity" min="0" max="1" step="0.05" value="0.3" oninput="updateParam('erosionIntensity', this.value)">
+                        <span class="value-display" id="erosionIntensity-value">0.3</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>深度层级</label>
+                    <div class="slider-container">
+                        <input type="range" id="depthLevel" min="0" max="3" step="1" value="0" oninput="updateParam('depthLevel', this.value)">
+                        <span class="value-display" id="depthLevel-value">0</span>
+                    </div>
+                </div>
+            </div>
+            <div class="control-section">
+                <h3>Colors</h3>
+                <div class="color-group">
+                    <label>深渊底色</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color1" value="#0A0E1A" onchange="updateColor('color1', this.value)">
+                        <span class="color-value" id="color1-value">#0A0E1A</span>
+                    </div>
+                </div>
+                <div class="color-group">
+                    <label>荧光青</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color2" value="#00FFD4" onchange="updateColor('color2', this.value)">
+                        <span class="color-value" id="color2-value">#00FFD4</span>
+                    </div>
+                </div>
+                <div class="color-group">
+                    <label>虚空橙</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color3" value="#FF6B35" onchange="updateColor('color3', this.value)">
+                        <span class="color-value" id="color3-value">#FF6B35</span>
+                    </div>
+                </div>
+            </div>
+            <div class="control-section">
+                <h3>Actions</h3>
+                <div class="button-row">
+                    <button class="button" onclick="resetParameters()">Reset</button>
+                </div>
+            </div>
+        </div>
+        <div class="canvas-area">
+            <div id="canvas-container">
+                <div class="loading">Initializing Abyssal Tempest...</div>
+            </div>
+        </div>
+    </div>
+    <script>
+        let params = {
+            seed: 42,
+            particleCount: 800,
+            windStrength: 1.5,
+            vortexDensity: 4,
+            lightningFreq: 0.015,
+            erosionIntensity: 0.3,
+            depthLevel: 0,
+            colorPalette: ['#0A0E1A', '#00FFD4', '#FF6B35']
+        };
+        let defaultParams = JSON.parse(JSON.stringify(params));
+
+        let particles = [];
+        let vortices = [];
+        let lightningBolts = [];
+        let rainDrops = [];
+        let erosionCracks = [];
+        let time = 0;
+
+        function setup() {
+            let canvas = createCanvas(1200, 800);
+            canvas.parent('canvas-container');
+            initializeSystem();
+            document.querySelector('.loading').style.display = 'none';
+        }
+
+        function initializeSystem() {
+            randomSeed(params.seed);
+            noiseSeed(params.seed);
+            time = 0;
+            particles = [];
+            vortices = [];
+            lightningBolts = [];
+            rainDrops = [];
+            erosionCracks = [];
+
+            for (let i = 0; i < params.vortexDensity; i++) {
+                vortices.push({
+                    x: random(100, width - 100),
+                    y: random(100, height - 100),
+                    strength: random(0.5, 2.0) * (random() > 0.5 ? 1 : -1),
+                    radius: random(80, 200),
+                    driftX: random(-0.3, 0.3),
+                    driftY: random(-0.2, 0.2),
+                    phase: random(TWO_PI)
+                });
+            }
+
+            for (let i = 0; i < params.particleCount; i++) {
+                let type = random();
+                let p;
+                if (type < 0.5) {
+                    p = createRainDrop();
+                } else if (type < 0.85) {
+                    p = createDustParticle();
+                } else {
+                    p = createWindParticle();
+                }
+                particles.push(p);
+            }
+
+            for (let i = 0; i < 30; i++) {
+                erosionCracks.push({
+                    x: random(width),
+                    y: random(height),
+                    segments: generateCrackSegments(random(width), random(height)),
+                    alpha: 0,
+                    timer: random(5000, 15000)
+                });
+            }
+        }
+
+        function createRainDrop() {
+            return {
+                type: 'rain',
+                x: random(width),
+                y: random(-height, 0),
+                vx: 0,
+                vy: random(3, 8),
+                size: random(1, 3),
+                alpha: random(0.2, 0.6),
+                length: random(8, 25),
+                life: 1
+            };
+        }
+
+        function createDustParticle() {
+            return {
+                type: 'dust',
+                x: random(width),
+                y: random(height),
+                vx: random(-1, 1),
+                vy: random(-0.5, 0.5),
+                size: random(1.5, 4),
+                alpha: random(0.1, 0.4),
+                life: 1,
+                phase: random(TWO_PI)
+            };
+        }
+
+        function createWindParticle() {
+            return {
+                type: 'wind',
+                x: random(width),
+                y: random(height),
+                vx: random(-2, 2),
+                vy: random(-1, 1),
+                size: random(0.5, 2),
+                alpha: random(0.05, 0.2),
+                trail: [],
+                maxTrail: floor(random(5, 15)),
+                life: 1
+            };
+        }
+
+        function generateCrackSegments(sx, sy) {
+            let segs = [];
+            let cx = sx, cy = sy;
+            let angle = random(TWO_PI);
+            let count = floor(random(3, 8));
+            for (let i = 0; i < count; i++) {
+                let len = random(10, 40);
+                let nx = cx + cos(angle) * len;
+                let ny = cy + sin(angle) * len;
+                segs.push({ x1: cx, y1: cy, x2: nx, y2: ny });
+                cx = nx; cy = ny;
+                angle += random(-0.6, 0.6);
+            }
+            return segs;
+        }
+
+        function draw() {
+            time += deltaTime / 1000;
+            let depthColors = [
+                { bg: [10, 14, 26], fog: [26, 39, 68] },
+                { bg: [10, 10, 20], fog: [26, 16, 53] },
+                { bg: [15, 5, 10], fog: [42, 10, 26] },
+                { bg: [5, 0, 3], fog: [10, 0, 5] }
+            ];
+            let dc = depthColors[params.depthLevel];
+
+            background(dc.bg[0], dc.bg[1], dc.bg[2], 30);
+
+            updateVortices();
+            updateAndRenderRain();
+            updateAndRenderDust();
+            updateAndRenderWind();
+            updateAndRenderLightning();
+            renderVortexCores();
+            renderErosionOverlay(dc);
+        }
+
+        function updateVortices() {
+            for (let v of vortices) {
+                v.x += v.driftX + sin(time * 0.2 + v.phase) * 0.3;
+                v.y += v.driftY + cos(time * 0.15 + v.phase) * 0.2;
+                if (v.x < -50) v.x = width + 50;
+                if (v.x > width + 50) v.x = -50;
+                if (v.y < -50) v.y = height + 50;
+                if (v.y > height + 50) v.y = -50;
+            }
+        }
+
+        function getWindForce(x, y) {
+            let fx = 0, fy = 0;
+            let ns = 0.003;
+            fx += (noise(x * ns, y * ns, time * 0.1) - 0.5) * 4 * params.windStrength;
+            fy += (noise(x * ns + 100, y * ns + 100, time * 0.1) - 0.5) * 2 * params.windStrength;
+
+            for (let v of vortices) {
+                let dx = x - v.x;
+                let dy = y - v.y;
+                let dist = sqrt(dx * dx + dy * dy);
+                if (dist < v.radius && dist > 1) {
+                    let force = v.strength * (1 - dist / v.radius) * params.windStrength;
+                    fx += (-dy / dist) * force;
+                    fy += (dx / dist) * force;
+                }
+            }
+            return { x: fx, y: fy };
+        }
+
+        function updateAndRenderRain() {
+            let cyan = hexToRgb(params.colorPalette[1]);
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                if (p.type !== 'rain') continue;
+
+                let wind = getWindForce(p.x, p.y);
+                p.vx = p.vx * 0.8 + wind.x * 0.2;
+                p.vy += 0.1;
+                p.x += p.vx;
+                p.y += p.vy;
+
+                if (p.y > height + 20 || p.x < -20 || p.x > width + 20) {
+                    particles[i] = createRainDrop();
+                    continue;
+                }
+
+                let speedRatio = min(1, sqrt(p.vx * p.vx + p.vy * p.vy) / 10);
+                let r = lerp(cyan.r, 255, speedRatio * 0.3 * (params.depthLevel / 3));
+                let g = lerp(cyan.g, 107, speedRatio * 0.3 * (params.depthLevel / 3));
+                let b = lerp(cyan.b, 53, speedRatio * 0.3 * (params.depthLevel / 3));
+
+                stroke(r, g, b, p.alpha * 255);
+                strokeWeight(p.size * 0.5);
+                let endX = p.x - p.vx * (p.length / p.vy);
+                let endY = p.y - p.length;
+                line(p.x, p.y, endX, endY);
+            }
+        }
+
+        function updateAndRenderDust() {
+            let orange = hexToRgb(params.colorPalette[2]);
+            let cyan = hexToRgb(params.colorPalette[1]);
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                if (p.type !== 'dust') continue;
+
+                let wind = getWindForce(p.x, p.y);
+                p.vx = p.vx * 0.95 + wind.x * 0.05;
+                p.vy = p.vy * 0.95 + wind.y * 0.05;
+                p.x += p.vx;
+                p.y += p.vy;
+                p.alpha = 0.1 + 0.2 * (sin(time * 2 + p.phase) * 0.5 + 0.5);
+
+                if (p.x < -20) p.x = width + 20;
+                if (p.x > width + 20) p.x = -20;
+                if (p.y < -20) p.y = height + 20;
+                if (p.y > height + 20) p.y = -20;
+
+                let depthMix = params.depthLevel / 3;
+                let r = lerp(cyan.r, orange.r, depthMix);
+                let g = lerp(cyan.g, orange.g, depthMix);
+                let b = lerp(cyan.b, orange.b, depthMix);
+
+                noStroke();
+                fill(r, g, b, p.alpha * 255);
+                ellipse(p.x, p.y, p.size, p.size);
+
+                if (p.size > 2.5) {
+                    fill(r, g, b, p.alpha * 40);
+                    ellipse(p.x, p.y, p.size * 4, p.size * 4);
+                }
+            }
+        }
+
+        function updateAndRenderWind() {
+            let cyan = hexToRgb(params.colorPalette[1]);
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                if (p.type !== 'wind') continue;
+
+                let wind = getWindForce(p.x, p.y);
+                p.vx = p.vx * 0.9 + wind.x * 0.1;
+                p.vy = p.vy * 0.9 + wind.y * 0.1;
+                p.x += p.vx;
+                p.y += p.vy;
+
+                p.trail.push({ x: p.x, y: p.y });
+                if (p.trail.length > p.maxTrail) p.trail.shift();
+
+                if (p.x < -20 || p.x > width + 20 || p.y < -20 || p.y > height + 20) {
+                    particles[i] = createWindParticle();
+                    continue;
+                }
+
+                if (p.trail.length > 1) {
+                    noFill();
+                    beginShape();
+                    for (let j = 0; j < p.trail.length; j++) {
+                        let t = j / p.trail.length;
+                        stroke(cyan.r, cyan.g, cyan.b, t * p.alpha * 200);
+                        strokeWeight(p.size * t);
+                        vertex(p.trail[j].x, p.trail[j].y);
+                    }
+                    endShape();
+                }
+            }
+        }
+
+        function updateAndRenderLightning() {
+            if (random() < params.lightningFreq) {
+                let startX = random(width);
+                let bolt = generateLightning(startX, 0, startX + random(-100, 100), height * random(0.4, 0.8));
+                lightningBolts.push({ segments: bolt, alpha: 1, life: 200 });
+            }
+
+            for (let i = lightningBolts.length - 1; i >= 0; i--) {
+                let bolt = lightningBolts[i];
+                bolt.life -= deltaTime;
+                bolt.alpha = max(0, bolt.life / 200);
+
+                if (bolt.alpha > 0.01) {
+                    let orange = hexToRgb(params.colorPalette[2]);
+                    let cyan = hexToRgb(params.colorPalette[1]);
+                    let depthMix = params.depthLevel / 3;
+
+                    stroke(lerp(cyan.r, orange.r, depthMix), lerp(cyan.g, orange.g, depthMix), lerp(cyan.b, orange.b, depthMix), bolt.alpha * 200);
+                    strokeWeight(2 * bolt.alpha);
+                    noFill();
+                    for (let seg of bolt.segments) {
+                        line(seg.x1, seg.y1, seg.x2, seg.y2);
+                    }
+
+                    stroke(255, 255, 255, bolt.alpha * 100);
+                    strokeWeight(4 * bolt.alpha);
+                    for (let seg of bolt.segments) {
+                        line(seg.x1, seg.y1, seg.x2, seg.y2);
+                    }
+
+                    if (bolt.alpha > 0.5) {
+                        noStroke();
+                        fill(255, 255, 255, bolt.alpha * 15);
+                        rect(0, 0, width, height);
+                    }
+                }
+
+                if (bolt.life <= 0) lightningBolts.splice(i, 1);
+            }
+        }
+
+        function generateLightning(x1, y1, x2, y2) {
+            let segments = [];
+            let steps = 8;
+            let cx = x1, cy = y1;
+            for (let i = 0; i < steps; i++) {
+                let t = (i + 1) / steps;
+                let nx = lerp(x1, x2, t) + random(-40, 40);
+                let ny = lerp(y1, y2, t);
+                segments.push({ x1: cx, y1: cy, x2: nx, y2: ny });
+                if (random() < 0.3) {
+                    let bx = nx + random(-60, 60);
+                    let by = ny + random(20, 60);
+                    segments.push({ x1: nx, y1: ny, x2: bx, y2: by });
+                }
+                cx = nx; cy = ny;
+            }
+            return segments;
+        }
+
+        function renderVortexCores() {
+            for (let v of vortices) {
+                let pulse = sin(time * 2 + v.phase) * 0.3 + 0.7;
+                let cyan = hexToRgb(params.colorPalette[1]);
+                let orange = hexToRgb(params.colorPalette[2]);
+                let depthMix = params.depthLevel / 3;
+                let r = lerp(cyan.r, orange.r, depthMix);
+                let g = lerp(cyan.g, orange.g, depthMix);
+                let b = lerp(cyan.b, orange.b, depthMix);
+
+                noStroke();
+                for (let layer = 3; layer >= 0; layer--) {
+                    let rad = (10 + layer * 15) * pulse;
+                    fill(r, g, b, (0.03 - layer * 0.006) * 255);
+                    ellipse(v.x, v.y, rad * 2, rad * 2);
+                }
+            }
+        }
+
+        function renderErosionOverlay(dc) {
+            let ei = params.erosionIntensity;
+            if (ei < 0.01) return;
+
+            if (ei > 0.2) {
+                stroke(dc.fog[0], dc.fog[1], dc.fog[2], ei * 15);
+                strokeWeight(1);
+                for (let y = 0; y < height; y += 3) {
+                    line(0, y, width, y);
+                }
+            }
+
+            for (let crack of erosionCracks) {
+                crack.timer -= deltaTime;
+                if (crack.timer <= 0) {
+                    crack.alpha = 0;
+                    crack.timer = random(5000, 15000);
+                    crack.segments = generateCrackSegments(random(width), random(height));
+                }
+                if (crack.alpha < ei * 0.5) crack.alpha += 0.001;
+                if (crack.alpha > 0.01) {
+                    let orange = hexToRgb(params.colorPalette[2]);
+                    stroke(orange.r, orange.g, orange.b, crack.alpha * 255);
+                    strokeWeight(1);
+                    noFill();
+                    for (let seg of crack.segments) {
+                        line(seg.x1, seg.y1, seg.x2, seg.y2);
+                    }
+                }
+            }
+
+            if (ei > 0.5) {
+                let vignette = drawingContext.createRadialGradient(width/2, height/2, width*0.3, width/2, height/2, width*0.7);
+                vignette.addColorStop(0, 'rgba(0,0,0,0)');
+                vignette.addColorStop(1, `rgba(${dc.bg[0]},${dc.bg[1]},${dc.bg[2]},${ei * 0.3})`);
+                drawingContext.fillStyle = vignette;
+                drawingContext.fillRect(0, 0, width, height);
+            }
+        }
+
+        function hexToRgb(hex) {
+            let r = parseInt(hex.slice(1, 3), 16);
+            let g = parseInt(hex.slice(3, 5), 16);
+            let b = parseInt(hex.slice(5, 7), 16);
+            return { r, g, b };
+        }
+
+        function updateParam(name, value) {
+            let numVal = parseFloat(value);
+            params[name] = numVal;
+            document.getElementById(name + '-value').textContent = value;
+            if (name === 'vortexDensity') initializeSystem();
+        }
+
+        function updateColor(colorId, value) {
+            let idx = parseInt(colorId.replace('color', '')) - 1;
+            params.colorPalette[idx] = value;
+            document.getElementById(colorId + '-value').textContent = value;
+        }
+
+        function updateSeedDisplay() { document.getElementById('seed-input').value = params.seed; }
+        function updateSeed() {
+            let newSeed = parseInt(document.getElementById('seed-input').value);
+            if (newSeed && newSeed > 0) { params.seed = newSeed; initializeSystem(); }
+            else updateSeedDisplay();
+        }
+        function previousSeed() { params.seed = Math.max(1, params.seed - 1); updateSeedDisplay(); initializeSystem(); }
+        function nextSeed() { params.seed++; updateSeedDisplay(); initializeSystem(); }
+        function randomSeedAndUpdate() { params.seed = Math.floor(Math.random() * 999999) + 1; updateSeedDisplay(); initializeSystem(); }
+
+        function resetParameters() {
+            params = JSON.parse(JSON.stringify(defaultParams));
+            document.getElementById('particleCount').value = params.particleCount;
+            document.getElementById('particleCount-value').textContent = params.particleCount;
+            document.getElementById('windStrength').value = params.windStrength;
+            document.getElementById('windStrength-value').textContent = params.windStrength;
+            document.getElementById('vortexDensity').value = params.vortexDensity;
+            document.getElementById('vortexDensity-value').textContent = params.vortexDensity;
+            document.getElementById('lightningFreq').value = params.lightningFreq;
+            document.getElementById('lightningFreq-value').textContent = params.lightningFreq;
+            document.getElementById('erosionIntensity').value = params.erosionIntensity;
+            document.getElementById('erosionIntensity-value').textContent = params.erosionIntensity;
+            document.getElementById('depthLevel').value = params.depthLevel;
+            document.getElementById('depthLevel-value').textContent = params.depthLevel;
+            document.getElementById('color1').value = params.colorPalette[0];
+            document.getElementById('color1-value').textContent = params.colorPalette[0];
+            document.getElementById('color2').value = params.colorPalette[1];
+            document.getElementById('color2-value').textContent = params.colorPalette[1];
+            document.getElementById('color3').value = params.colorPalette[2];
+            document.getElementById('color3-value').textContent = params.colorPalette[2];
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        window.addEventListener('load', function() { updateSeedDisplay(); });
+    </script>
+</body>
+</html>

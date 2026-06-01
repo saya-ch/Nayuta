@@ -162,6 +162,12 @@ export class LevelData {
         { x: 1300, y: 540, w: 80, h: 14, moveType: 'horizontal', range: 140, speed: 0.7 },
         { x: 1700, y: 460, w: 70, h: 14, moveType: 'vertical', range: 60, speed: 0.5 },
       ],
+      hazards: [
+        { type: 'spike', x: 560, y: 616, w: 60, h: 6 },
+        { type: 'spike', x: 1200, y: 616, w: 50, h: 6 },
+        { type: 'lava', x: 760, y: 656, w: 200, h: 8 },
+        { type: 'lava', x: 1860, y: 656, w: 160, h: 8 },
+      ],
       portals: [
         { x: 120, y: 590, id: 'l1_p1', pairedId: 'l1_p2' },
         { x: 2200, y: 590, id: 'l1_p2', pairedId: 'l1_p1' },
@@ -311,6 +317,12 @@ export class LevelData {
         { x: 1200, y: 540, w: 80, h: 14, moveType: 'circular', range: 60, speed: 0.4 },
         { x: 1600, y: 620, w: 70, h: 14, moveType: 'horizontal', range: 120, speed: 0.8 },
         { x: 1960, y: 440, w: 70, h: 14, moveType: 'vertical', range: 80, speed: 0.6 },
+      ],
+      hazards: [
+        { type: 'spike', x: 380, y: 696, w: 60, h: 6 },
+        { type: 'spike', x: 1040, y: 696, w: 50, h: 6 },
+        { type: 'lava', x: 700, y: 736, w: 180, h: 8 },
+        { type: 'voidRift', x: 1500, y: 700, w: 80, h: 10, cycleDuration: 4000 },
       ],
       portals: [
         { x: 50, y: 670, id: 'l2_p1', pairedId: 'l2_p2' },
@@ -467,6 +479,15 @@ export class LevelData {
         { x: 1500, y: 520, w: 60, h: 14, moveType: 'circular', range: 50, speed: 0.5 },
         { x: 1900, y: 680, w: 70, h: 14, moveType: 'vertical', range: 80, speed: 0.8 },
         { x: 2240, y: 600, w: 60, h: 14, moveType: 'horizontal', range: 100, speed: 1.1 },
+      ],
+      hazards: [
+        { type: 'spike', x: 320, y: 796, w: 60, h: 6 },
+        { type: 'spike', x: 980, y: 796, w: 50, h: 6 },
+        { type: 'spike', x: 1640, y: 796, w: 50, h: 6 },
+        { type: 'lava', x: 640, y: 836, w: 180, h: 8 },
+        { type: 'lava', x: 1980, y: 836, w: 180, h: 8 },
+        { type: 'voidRift', x: 1160, y: 800, w: 80, h: 10, cycleDuration: 3500 },
+        { type: 'voidRift', x: 2320, y: 800, w: 70, h: 10, cycleDuration: 3000 },
       ],
       portals: [
         { x: 40, y: 770, id: 'l3_p1', pairedId: 'l3_p2' },
@@ -628,6 +649,18 @@ export class LevelData {
         { x: 1840, y: 600, w: 50, h: 14, moveType: 'horizontal', range: 70, speed: 1.3 },
         { x: 2140, y: 680, w: 50, h: 14, moveType: 'circular', range: 50, speed: 0.7 },
         { x: 2440, y: 560, w: 50, h: 14, moveType: 'vertical', range: 90, speed: 1.0 },
+      ],
+      hazards: [
+        { type: 'spike', x: 260, y: 896, w: 50, h: 6 },
+        { type: 'spike', x: 840, y: 896, w: 50, h: 6 },
+        { type: 'spike', x: 1440, y: 896, w: 50, h: 6 },
+        { type: 'spike', x: 2040, y: 896, w: 50, h: 6 },
+        { type: 'lava', x: 540, y: 936, w: 140, h: 8 },
+        { type: 'lava', x: 1140, y: 936, w: 140, h: 8 },
+        { type: 'lava', x: 2340, y: 936, w: 140, h: 8 },
+        { type: 'voidRift', x: 700, y: 900, w: 60, h: 10, cycleDuration: 3000 },
+        { type: 'voidRift', x: 1600, y: 900, w: 60, h: 10, cycleDuration: 2500 },
+        { type: 'voidRift', x: 2500, y: 900, w: 60, h: 10, cycleDuration: 2000 },
       ],
       portals: [
         { x: 30, y: 870, id: 'l4_p1', pairedId: 'l4_p2' },
