@@ -9,37 +9,35 @@ html, body {
   height: 100%;
   overflow: hidden;
   background: #0A0E1A;
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  touch-action: none;
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  user-select: none;
 }
 
 #game-container {
-  width: 100%;
-  height: 100%;
+  width: 100vw;
+  height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, #0A0E1A 0%, #050709 100%);
 }
 
 #game-canvas {
   display: block;
+  max-width: 100%;
+  max-height: 100%;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
-  touch-action: none;
 }
 
 #fps-display {
   position: absolute;
   top: 8px;
-  right: 12px;
-  font-family: 'Courier New', monospace;
-  font-size: 11px;
-  color: rgba(107, 107, 141, 0.5);
+  right: 8px;
+  color: rgba(0, 255, 212, 0.4);
+  font: 10px monospace;
   pointer-events: none;
+  user-select: none;
   z-index: 10;
 }
 

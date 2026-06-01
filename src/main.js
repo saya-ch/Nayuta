@@ -1,3 +1,4 @@
+import './style.css';
 import { Game } from './core/game.js';
 import { SceneManager } from './core/scene-manager.js';
 import { InputManager } from './core/input.js';
