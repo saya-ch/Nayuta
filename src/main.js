@@ -7,6 +7,7 @@ import { MenuScene } from './scenes/menu-scene.js';
 import { GameScene } from './scenes/game-scene.js';
 import { PauseScene } from './scenes/pause-scene.js';
 import { EndingScene } from './scenes/ending-scene.js';
+import { AboutScene } from './scenes/about-scene.js';
 
 const canvas = document.getElementById('game-canvas');
 const game = new Game(canvas);
@@ -17,11 +18,13 @@ const menuScene = new MenuScene(input, sceneManager, audioSystem);
 const gameScene = new GameScene(input, sceneManager, audioSystem);
 const pauseScene = new PauseScene(input, sceneManager, audioSystem);
 const endingScene = new EndingScene(input, sceneManager, audioSystem);
+const aboutScene = new AboutScene(input, sceneManager, audioSystem);
 
 sceneManager.register('menu', menuScene);
 sceneManager.register('game', gameScene);
 sceneManager.register('pause', pauseScene);
 sceneManager.register('ending', endingScene);
+sceneManager.register('about', aboutScene);
 
 game.init(sceneManager, input);
 

@@ -10,6 +10,10 @@ html, body {
   overflow: hidden;
   background: #0A0E1A;
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 #game-container {
@@ -25,6 +29,7 @@ html, body {
   display: block;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
+  touch-action: none;
 }
 
 #fps-display {
@@ -36,4 +41,12 @@ html, body {
   color: rgba(107, 107, 141, 0.5);
   pointer-events: none;
   z-index: 10;
+}
+
+@media (max-width: 900px) {
+  #fps-display {
+    font-size: 9px;
+    top: 4px;
+    right: 8px;
+  }
 }

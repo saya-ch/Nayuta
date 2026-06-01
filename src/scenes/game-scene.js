@@ -271,7 +271,15 @@ export class GameScene extends Scene {
     const gravity = 800;
     const jumpForce = -400;
 
-    if (this.input.isDown('ArrowLeft') || this.input.isDown('KeyA')) {
+    if (this.input.isMobile() && this.input.getJoystickState().active) {
+      const dir = this.input.getJoystickDirection();
+      if (Math.abs(dir.x) > 0.2) {
+        this.player.vx = dir.x * speed;
+        this.player.facing = dir.x > 0 ? 1 : -1;
+      } else {
+        this.player.vx *= 0.85;
+      }
+    } else if (this.input.isDown('ArrowLeft') || this.input.isDown('KeyA')) {
       this.player.vx = -speed;
       this.player.facing = -1;
     } else if (this.input.isDown('ArrowRight') || this.input.isDown('KeyD')) {
@@ -591,6 +599,10 @@ export class GameScene extends Scene {
     } else if (this.transitionAlpha > 0) {
       ctx.fillStyle = `rgba(10, 14, 26, ${this.transitionAlpha})`;
       ctx.fillRect(-10, -10, w + 20, h + 20);
+    }
+
+    if (this.input.isMobile()) {
+      this._renderTouchControls(ctx, w, h);
     }
 
     ctx.restore();
@@ -1390,6 +1402,71 @@ export class GameScene extends Scene {
       }
     }
     ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+
+  _renderTouchControls(ctx, w, h) {
+    ctx.save();
+
+    const joystick = this.input.getJoystickState();
+    const jx = 160;
+    const jy = h - 140;
+    const baseR = 60;
+    const thumbR = 25;
+
+    ctx.globalAlpha = 0.25;
+    ctx.beginPath();
+    ctx.arc(jx, jy, baseR, 0, Math.PI * 2);
+    ctx.strokeStyle = COLORS.FLUORESCENT_CYAN;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(10, 14, 26, 0.3)';
+    ctx.fill();
+
+    if (joystick.active) {
+      const thumbX = jx + joystick.dx;
+      const thumbY = jy + joystick.dy;
+      ctx.globalAlpha = 0.6;
+      ctx.beginPath();
+      ctx.arc(thumbX, thumbY, thumbR, 0, Math.PI * 2);
+      ctx.fillStyle = COLORS.FLUORESCENT_CYAN;
+      ctx.shadowColor = COLORS.FLUORESCENT_CYAN;
+      ctx.shadowBlur = 12;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    } else {
+      ctx.globalAlpha = 0.2;
+      ctx.beginPath();
+      ctx.arc(jx, jy, thumbR, 0, Math.PI * 2);
+      ctx.fillStyle = COLORS.FLUORESCENT_CYAN;
+      ctx.fill();
+    }
+
+    const buttons = [
+      { x: w - 180, y: h - 200, r: 32, label: 'E', key: 'KeyE' },
+      { x: w - 100, y: h - 120, r: 38, label: '↑', key: 'Space' },
+      { x: w - 180, y: h - 60, r: 28, label: '||', key: 'Escape' },
+    ];
+
+    for (const btn of buttons) {
+      const isPressed = this.input.isDown(btn.key);
+      ctx.globalAlpha = isPressed ? 0.5 : 0.2;
+      ctx.beginPath();
+      ctx.arc(btn.x, btn.y, btn.r, 0, Math.PI * 2);
+      ctx.fillStyle = isPressed ? COLORS.FLUORESCENT_CYAN : 'rgba(10, 14, 26, 0.4)';
+      ctx.fill();
+      ctx.strokeStyle = COLORS.FLUORESCENT_CYAN;
+      ctx.lineWidth = isPressed ? 2 : 1;
+      ctx.stroke();
+
+      ctx.globalAlpha = isPressed ? 0.9 : 0.4;
+      ctx.font = `500 ${btn.r * 0.7}px "Segoe UI", system-ui, sans-serif`;
+      ctx.fillStyle = isPressed ? COLORS.ABYSS_BLUE : COLORS.FLUORESCENT_CYAN;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(btn.label, btn.x, btn.y);
+    }
+
     ctx.restore();
   }
 }

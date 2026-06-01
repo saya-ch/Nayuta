@@ -28,6 +28,7 @@ export class MenuScene extends Scene {
     this._generateStars();
     this._generateStardust();
     this._setupMouseTracking();
+    this._setupTouchTracking();
   }
 
   _setupMouseTracking() {
@@ -52,6 +53,45 @@ export class MenuScene extends Scene {
     };
     window.addEventListener('mousemove', this._mouseMoveHandler);
     window.addEventListener('click', this._clickHandler);
+  }
+
+  _setupTouchTracking() {
+    this._touchStartHandler = (e) => {
+      if (this.menuAlpha < 0.8) return;
+      const touch = e.changedTouches[0];
+      if (!touch) return;
+      const h = window.innerHeight;
+      const startY = h * 0.55;
+      const itemHeight = 50;
+      const touchY = touch.clientY;
+      for (let i = 0; i < this.menuItems.length; i++) {
+        const itemY = startY + i * itemHeight;
+        if (Math.abs(touchY - itemY) < 30) {
+          this.selectedIndex = i;
+          if (this.audio) this.audio.playSFX('menuSelect');
+          break;
+        }
+      }
+    };
+    this._touchEndHandler = (e) => {
+      if (this.menuAlpha < 0.8) return;
+      const touch = e.changedTouches[0];
+      if (!touch) return;
+      const h = window.innerHeight;
+      const startY = h * 0.55;
+      const itemHeight = 50;
+      const touchY = touch.clientY;
+      for (let i = 0; i < this.menuItems.length; i++) {
+        const itemY = startY + i * itemHeight;
+        if (Math.abs(touchY - itemY) < 30) {
+          this.selectedIndex = i;
+          this._selectItem();
+          break;
+        }
+      }
+    };
+    window.addEventListener('touchstart', this._touchStartHandler, { passive: true });
+    window.addEventListener('touchend', this._touchEndHandler, { passive: true });
   }
 
   _generateStars() {
@@ -109,6 +149,12 @@ export class MenuScene extends Scene {
     }
     if (this._clickHandler) {
       window.removeEventListener('click', this._clickHandler);
+    }
+    if (this._touchStartHandler) {
+      window.removeEventListener('touchstart', this._touchStartHandler);
+    }
+    if (this._touchEndHandler) {
+      window.removeEventListener('touchend', this._touchEndHandler);
     }
   }
 
@@ -402,7 +448,7 @@ export class MenuScene extends Scene {
     ctx.fillStyle = COLORS.STARDUST_GRAY;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('↑↓ 选择  ·  Enter 确认  ·  鼠标点击', w / 2, h * 0.88);
+    ctx.fillText('↑↓ 选择  ·  Enter 确认  ·  触控点击', w / 2, h * 0.88);
     ctx.restore();
 
     if (this.hasContinue) {
