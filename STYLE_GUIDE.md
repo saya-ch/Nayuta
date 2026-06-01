@@ -73,6 +73,7 @@
 - 宣传短片生成器：assets/video/abyssal-requiem.html
 - 结局抉择特效生成器：assets/shaders/ultimate-divergence.html
 - 水面反射效果生成器：assets/shaders/abyssal-reflection.html
+- 深渊脉动生成器：assets/shaders/abyssal-pulse.html
 
 ## Shader 风格参考
 - 星空粒子：缓慢飘散的星尘，有深度视差
@@ -81,6 +82,7 @@
 - 记忆回放：VHS 故障效果 + 色彩偏移
 - 现实侵蚀：扫描线 + 屏幕震动 + 色温偏移 + 现实裂缝 + 故障爆发，深度驱动渐进异变
 - 水面反射：双界面视觉（水上/水下），多层正弦波纹 + 噪声扭曲反射 + 深渊荧光渗透 + 侵蚀叠加
+- 深渊脉动：奇点引力场 + 多频呼吸系统（0.1Hz/0.3Hz/1Hz 三频共振）+ 侵蚀脉冲冲击波 + 记忆残响几何碎片
 
 ## 侵蚀系统视觉规范
 - 深度0（浅层）：无侵蚀，纯净童话感

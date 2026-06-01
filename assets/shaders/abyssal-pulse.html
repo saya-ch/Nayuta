@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Abyssal Pulse — 深渊脉动</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --anthropic-dark: #141413;
+            --anthropic-light: #faf9f5;
+            --anthropic-mid-gray: #b0aea5;
+            --anthropic-light-gray: #e8e6dc;
+            --anthropic-orange: #d97757;
+            --anthropic-blue: #6a9bcc;
+            --anthropic-green: #788c5d;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, var(--anthropic-light) 0%, #f5f3ee 100%);
+            min-height: 100vh;
+            color: var(--anthropic-dark);
+        }
+        .container { display: flex; min-height: 100vh; padding: 20px; gap: 20px; }
+        .sidebar {
+            width: 320px; flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 24px; border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(20, 20, 19, 0.1);
+            overflow-y: auto; overflow-x: hidden;
+        }
+        .sidebar h1 { font-family: 'Lora', serif; font-size: 24px; font-weight: 500; color: var(--anthropic-dark); margin-bottom: 8px; }
+        .sidebar .subtitle { color: var(--anthropic-mid-gray); font-size: 14px; margin-bottom: 32px; line-height: 1.4; }
+        .control-section { margin-bottom: 32px; }
+        .control-section h3 { font-size: 16px; font-weight: 600; color: var(--anthropic-dark); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .control-section h3::before { content: '•'; color: var(--anthropic-orange); font-weight: bold; }
+        .seed-input {
+            width: 100%; background: var(--anthropic-light); padding: 12px;
+            border-radius: 8px; font-family: 'Courier New', monospace; font-size: 14px;
+            margin-bottom: 12px; border: 1px solid var(--anthropic-light-gray); text-align: center;
+        }
+        .seed-input:focus { outline: none; border-color: var(--anthropic-orange); box-shadow: 0 0 0 2px rgba(217, 119, 87, 0.1); background: white; }
+        .seed-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+        .regen-button { margin-bottom: 0; }
+        .control-group { margin-bottom: 20px; }
+        .control-group label { display: block; font-size: 14px; font-weight: 500; color: var(--anthropic-dark); margin-bottom: 8px; }
+        .slider-container { display: flex; align-items: center; gap: 12px; }
+        .slider-container input[type="range"] { flex: 1; height: 4px; background: var(--anthropic-light-gray); border-radius: 2px; outline: none; -webkit-appearance: none; }
+        .slider-container input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; background: var(--anthropic-orange); border-radius: 50%; cursor: pointer; transition: all 0.2s ease; }
+        .slider-container input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.1); background: #c86641; }
+        .slider-container input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; background: var(--anthropic-orange); border-radius: 50%; border: none; cursor: pointer; }
+        .value-display { font-family: 'Courier New', monospace; font-size: 12px; color: var(--anthropic-mid-gray); min-width: 60px; text-align: right; }
+        .color-group { margin-bottom: 16px; }
+        .color-group label { display: block; font-size: 12px; color: var(--anthropic-mid-gray); margin-bottom: 4px; }
+        .color-picker-container { display: flex; align-items: center; gap: 8px; }
+        .color-picker-container input[type="color"] { width: 32px; height: 32px; border: none; border-radius: 6px; cursor: pointer; background: none; padding: 0; }
+        .color-value { font-family: 'Courier New', monospace; font-size: 12px; color: var(--anthropic-mid-gray); }
+        .button { background: var(--anthropic-orange); color: white; border: none; padding: 10px 16px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s ease; width: 100%; }
+        .button:hover { background: #c86641; transform: translateY(-1px); }
+        .button:active { transform: translateY(0); }
+        .button.secondary { background: var(--anthropic-blue); }
+        .button.secondary:hover { background: #5a8bb8; }
+        .button.tertiary { background: var(--anthropic-green); }
+        .button.tertiary:hover { background: #6b7b52; }
+        .button-row { display: flex; gap: 8px; }
+        .button-row .button { flex: 1; }
+        .canvas-area { flex: 1; display: flex; align-items: center; justify-content: center; min-width: 0; }
+        #canvas-container { width: 100%; max-width: 1000px; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 40px rgba(20, 20, 19, 0.1); background: #0A0E1A; }
+        #canvas-container canvas { display: block; width: 100% !important; height: auto !important; }
+        .loading { display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--anthropic-mid-gray); }
+        @media (max-width: 600px) { .container { flex-direction: column; } .sidebar { width: 100%; } .canvas-area { padding: 20px; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h1>Abyssal Pulse</h1>
+            <div class="subtitle">深渊脉动 — 宇宙级心跳的算法可视化</div>
+            <div class="control-section">
+                <h3>Seed</h3>
+                <input type="number" id="seed-input" class="seed-input" value="42" onchange="updateSeed()">
+                <div class="seed-controls">
+                    <button class="button secondary" onclick="previousSeed()">← Prev</button>
+                    <button class="button secondary" onclick="nextSeed()">Next →</button>
+                </div>
+                <button class="button tertiary regen-button" onclick="randomSeedAndUpdate()">↻ Random</button>
+            </div>
+            <div class="control-section">
+                <h3>Parameters</h3>
+                <div class="control-group">
+                    <label>Particle Count</label>
+                    <div class="slider-container">
+                        <input type="range" id="particleCount" min="200" max="2000" step="100" value="800" oninput="updateParam('particleCount', this.value)">
+                        <span class="value-display" id="particleCount-value">800</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Gravity Strength</label>
+                    <div class="slider-container">
+                        <input type="range" id="gravityStrength" min="0.1" max="3.0" step="0.1" value="1.0" oninput="updateParam('gravityStrength', this.value)">
+                        <span class="value-display" id="gravityStrength-value">1.0</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Breath Speed</label>
+                    <div class="slider-container">
+                        <input type="range" id="breathSpeed" min="0.2" max="2.0" step="0.1" value="0.6" oninput="updateParam('breathSpeed', this.value)">
+                        <span class="value-display" id="breathSpeed-value">0.6</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Erosion Intensity</label>
+                    <div class="slider-container">
+                        <input type="range" id="erosionIntensity" min="0.0" max="1.0" step="0.05" value="0.5" oninput="updateParam('erosionIntensity', this.value)">
+                        <span class="value-display" id="erosionIntensity-value">0.5</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Memory Fragments</label>
+                    <div class="slider-container">
+                        <input type="range" id="memoryFragments" min="0" max="20" step="1" value="8" oninput="updateParam('memoryFragments', this.value)">
+                        <span class="value-display" id="memoryFragments-value">8</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Pulse Waves</label>
+                    <div class="slider-container">
+                        <input type="range" id="pulseWaves" min="1" max="8" step="1" value="3" oninput="updateParam('pulseWaves', this.value)">
+                        <span class="value-display" id="pulseWaves-value">3</span>
+                    </div>
+                </div>
+            </div>
+            <div class="control-section">
+                <h3>Colors</h3>
+                <div class="color-group">
+                    <label>Abyss Base</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color1" value="#0A0E1A" onchange="updateColor('color1', this.value)">
+                        <span class="color-value" id="color1-value">#0A0E1A</span>
+                    </div>
+                </div>
+                <div class="color-group">
+                    <label>Fluorescent Cyan</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color2" value="#00FFD4" onchange="updateColor('color2', this.value)">
+                        <span class="color-value" id="color2-value">#00FFD4</span>
+                    </div>
+                </div>
+                <div class="color-group">
+                    <label>Void Orange</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color3" value="#FF6B35" onchange="updateColor('color3', this.value)">
+                        <span class="color-value" id="color3-value">#FF6B35</span>
+                    </div>
+                </div>
+            </div>
+            <div class="control-section">
+                <h3>Actions</h3>
+                <div class="button-row">
+                    <button class="button" onclick="resetParameters()">Reset</button>
+                </div>
+            </div>
+        </div>
+        <div class="canvas-area">
+            <div id="canvas-container">
+                <div class="loading">Initializing abyssal pulse...</div>
+            </div>
+        </div>
+    </div>
+    <script>
+        let params = {
+            seed: 42,
+            particleCount: 800,
+            gravityStrength: 1.0,
+            breathSpeed: 0.6,
+            erosionIntensity: 0.5,
+            memoryFragments: 8,
+            pulseWaves: 3,
+            colorPalette: ['#0A0E1A', '#00FFD4', '#FF6B35']
+        };
+        let defaultParams = JSON.parse(JSON.stringify(params));
+
+        let particles = [];
+        let memoryFrags = [];
+        let pulseRings = [];
+        let time = 0;
+        let breathPhase = 0;
+
+        function hexToRgb(hex) {
+            const r = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return r ? { r: parseInt(r[1], 16), g: parseInt(r[2], 16), b: parseInt(r[3], 16) } : { r: 0, g: 0, b: 0 };
+        }
+
+        function setup() {
+            let canvas = createCanvas(1200, 800);
+            canvas.parent('canvas-container');
+            initializeSystem();
+            document.querySelector('.loading').style.display = 'none';
+        }
+
+        function initializeSystem() {
+            randomSeed(params.seed);
+            noiseSeed(params.seed);
+            time = 0;
+            breathPhase = 0;
+            particles = [];
+            memoryFrags = [];
+            pulseRings = [];
+
+            for (let i = 0; i < params.particleCount; i++) {
+                let angle = random(TWO_PI);
+                let dist = random(50, 500);
+                particles.push({
+                    x: width / 2 + cos(angle) * dist,
+                    y: height / 2 + sin(angle) * dist,
+                    vx: 0, vy: 0,
+                    size: random(1, 3.5),
+                    baseAlpha: random(0.2, 0.7),
+                    orbitSpeed: random(0.002, 0.01) * (random() > 0.5 ? 1 : -1),
+                    depth: random(0, 1),
+                    phase: random(TWO_PI),
+                    alive: true
+                });
+            }
+
+            for (let i = 0; i < params.memoryFragments; i++) {
+                let angle = random(TWO_PI);
+                let dist = random(80, 350);
+                let shapes = ['hexagon', 'triangle', 'diamond'];
+                memoryFrags.push({
+                    x: width / 2 + cos(angle) * dist,
+                    y: height / 2 + sin(angle) * dist,
+                    angle: angle,
+                    dist: dist,
+                    rotation: random(TWO_PI),
+                    rotSpeed: random(0.005, 0.02) * (random() > 0.5 ? 1 : -1),
+                    size: random(8, 20),
+                    shape: shapes[floor(random(shapes.length))],
+                    alpha: 0,
+                    targetAlpha: random(0.15, 0.4),
+                    orbitSpeed: random(0.001, 0.004),
+                    phase: random(TWO_PI),
+                    visible: false,
+                    visibilityTimer: random(3000, 12000)
+                });
+            }
+
+            background(params.colorPalette[0]);
+        }
+
+        function draw() {
+            time += deltaTime / 1000;
+            breathPhase += params.breathSpeed * deltaTime / 1000;
+
+            let bgColor = hexToRgb(params.colorPalette[0]);
+            fill(bgColor.r, bgColor.g, bgColor.b, 25);
+            noStroke();
+            rect(0, 0, width, height);
+
+            let cx = width / 2;
+            let cy = height / 2;
+
+            let breath1 = sin(breathPhase * 0.628) * 0.5 + 0.5;
+            let breath2 = sin(breathPhase * 1.884 + 1.2) * 0.5 + 0.5;
+            let breath3 = sin(breathPhase * 6.28 + 2.5) * 0.5 + 0.5;
+            let combinedBreath = breath1 * 0.5 + breath2 * 0.3 + breath3 * 0.2;
+
+            renderSingularity(cx, cy, combinedBreath);
+            renderPulseRings(cx, cy, combinedBreath);
+            updateAndRenderParticles(cx, cy, combinedBreath);
+            updateAndRenderMemoryFragments(cx, cy, combinedBreath);
+            renderErosionEffects(cx, cy, combinedBreath);
+            renderScanLines();
+            renderVignette();
+
+            if (combinedBreath > 0.85 && random() < 0.02 * params.erosionIntensity) {
+                spawnPulseRing(cx, cy);
+            }
+        }
+
+        function renderSingularity(cx, cy, breath) {
+            let cyanColor = hexToRgb(params.colorPalette[1]);
+            let orangeColor = hexToRgb(params.colorPalette[2]);
+            let pulseR = 30 + breath * 50;
+
+            for (let layer = 3; layer >= 0; layer--) {
+                let r = pulseR * (1 + layer * 0.8);
+                let alpha = (0.03 + breath * 0.05) * (1 - layer * 0.2);
+                let cr = lerp(cyanColor.r, orangeColor.r, breath * 0.3);
+                let cg = lerp(cyanColor.g, orangeColor.g, breath * 0.3);
+                let cb = lerp(cyanColor.b, orangeColor.b, breath * 0.3);
+                noStroke();
+                fill(cr, cg, cb, alpha * 255);
+                ellipse(cx, cy, r * 2, r * 2);
+            }
+
+            let coreR = 8 + breath * 15;
+            fill(cyanColor.r, cyanColor.g, cyanColor.b, 150 + breath * 100);
+            ellipse(cx, cy, coreR, coreR);
+
+            fill(255, 255, 255, 80 + breath * 120);
+            ellipse(cx, cy, coreR * 0.4, coreR * 0.4);
+
+            for (let i = 0; i < 6; i++) {
+                let a = breathPhase * 0.3 + i * PI / 3;
+                let len = pulseR * 0.6 + breath * 30;
+                stroke(cyanColor.r, cyanColor.g, cyanColor.b, 30 + breath * 40);
+                strokeWeight(1);
+                line(cx, cy, cx + cos(a) * len, cy + sin(a) * len);
+            }
+        }
+
+        function spawnPulseRing(cx, cy) {
+            if (pulseRings.length >= params.pulseWaves * 2) return;
+            pulseRings.push({
+                x: cx, y: cy,
+                radius: 20,
+                maxRadius: max(width, height) * 0.8,
+                speed: 80 + random(60),
+                alpha: 0.6,
+                lineWidth: 2 + random(2)
+            });
+        }
+
+        function renderPulseRings(cx, cy, breath) {
+            let cyanColor = hexToRgb(params.colorPalette[1]);
+            let orangeColor = hexToRgb(params.colorPalette[2]);
+
+            for (let i = pulseRings.length - 1; i >= 0; i--) {
+                let ring = pulseRings[i];
+                ring.radius += ring.speed * deltaTime / 1000;
+                ring.alpha *= 0.995;
+
+                let progress = ring.radius / ring.maxRadius;
+                let cr = lerp(cyanColor.r, orangeColor.r, progress);
+                let cg = lerp(cyanColor.g, orangeColor.g, progress);
+                let cb = lerp(cyanColor.b, orangeColor.b, progress);
+
+                noFill();
+                stroke(cr, cg, cb, ring.alpha * 255);
+                strokeWeight(ring.lineWidth * (1 - progress * 0.5));
+                ellipse(ring.x, ring.y, ring.radius * 2, ring.radius * 2);
+
+                if (ring.radius > ring.maxRadius || ring.alpha < 0.01) {
+                    pulseRings.splice(i, 1);
+                }
+            }
+        }
+
+        function updateAndRenderParticles(cx, cy, breath) {
+            let cyanColor = hexToRgb(params.colorPalette[1]);
+            let orangeColor = hexToRgb(params.colorPalette[2]);
+
+            for (let p of particles) {
+                let dx = cx - p.x;
+                let dy = cy - p.y;
+                let distSq = dx * dx + dy * dy;
+                let dist = sqrt(distSq + 1);
+
+                let gravForce = params.gravityStrength * 50 / (dist + 30);
+                let breathMod = 0.5 + breath * 0.8;
+                gravForce *= breathMod;
+
+                p.vx += (dx / dist) * gravForce * deltaTime / 1000;
+                p.vy += (dy / dist) * gravForce * deltaTime / 1000;
+
+                let perpX = -dy / dist;
+                let perpY = dx / dist;
+                let orbitForce = p.orbitSpeed * params.gravityStrength * 30 / (dist * 0.01 + 1);
+                p.vx += perpX * orbitForce;
+                p.vy += perpY * orbitForce;
+
+                let noiseVal = noise(p.x * 0.003, p.y * 0.003, time * 0.2);
+                let noiseAngle = noiseVal * TWO_PI * 2;
+                p.vx += cos(noiseAngle) * 0.15;
+                p.vy += sin(noiseAngle) * 0.15;
+
+                p.vx *= 0.98;
+                p.vy *= 0.98;
+                p.x += p.vx;
+                p.y += p.vy;
+
+                if (dist < 15) {
+                    let angle = random(TWO_PI);
+                    let newDist = random(200, 450);
+                    p.x = cx + cos(angle) * newDist;
+                    p.y = cy + sin(angle) * newDist;
+                    p.vx = 0;
+                    p.vy = 0;
+                }
+
+                let colorProgress = map(dist, 15, 450, 1, 0);
+                colorProgress = constrain(colorProgress, 0, 1);
+                let cr = lerp(cyanColor.r, orangeColor.r, colorProgress);
+                let cg = lerp(cyanColor.g, orangeColor.g, colorProgress);
+                let cb = lerp(cyanColor.b, orangeColor.b, colorProgress);
+
+                let alpha = p.baseAlpha * (0.5 + breath * 0.5);
+                let pulseNear = dist < 100 ? sin(time * 8 + p.phase) * 0.3 : 0;
+                alpha += pulseNear;
+                alpha = constrain(alpha, 0, 1);
+
+                noStroke();
+                fill(cr, cg, cb, alpha * 255);
+                ellipse(p.x, p.y, p.size, p.size);
+            }
+        }
+
+        function updateAndRenderMemoryFragments(cx, cy, breath) {
+            let cyanColor = hexToRgb(params.colorPalette[1]);
+
+            for (let frag of memoryFrags) {
+                frag.visibilityTimer -= deltaTime;
+                if (frag.visibilityTimer <= 0) {
+                    frag.visible = !frag.visible;
+                    frag.visibilityTimer = frag.visible ? random(2000, 6000) : random(3000, 10000);
+                }
+
+                frag.alpha = lerp(frag.alpha, frag.visible ? frag.targetAlpha : 0, 0.02);
+
+                frag.angle += frag.orbitSpeed;
+                frag.rotation += frag.rotSpeed;
+
+                let breathOffset = sin(breathPhase + frag.phase) * 20;
+                frag.x = cx + cos(frag.angle) * (frag.dist + breathOffset);
+                frag.y = cy + sin(frag.angle) * (frag.dist + breathOffset);
+
+                if (frag.alpha < 0.01) continue;
+
+                push();
+                translate(frag.x, frag.y);
+                rotate(frag.rotation);
+                noFill();
+                stroke(cyanColor.r, cyanColor.g, cyanColor.b, frag.alpha * 255);
+                strokeWeight(1);
+
+                let s = frag.size;
+                if (frag.shape === 'hexagon') {
+                    beginShape();
+                    for (let i = 0; i < 6; i++) {
+                        let a = i * TWO_PI / 6;
+                        vertex(cos(a) * s, sin(a) * s);
+                    }
+                    endShape(CLOSE);
+                } else if (frag.shape === 'triangle') {
+                    beginShape();
+                    for (let i = 0; i < 3; i++) {
+                        let a = i * TWO_PI / 3 - HALF_PI;
+                        vertex(cos(a) * s, sin(a) * s);
+                    }
+                    endShape(CLOSE);
+                } else {
+                    beginShape();
+                    vertex(0, -s);
+                    vertex(s * 0.6, 0);
+                    vertex(0, s);
+                    vertex(-s * 0.6, 0);
+                    endShape(CLOSE);
+                }
+                pop();
+            }
+        }
+
+        function renderErosionEffects(cx, cy, breath) {
+            if (params.erosionIntensity < 0.01) return;
+            let orangeColor = hexToRgb(params.colorPalette[2]);
+
+            if (breath > 0.7 && random() < params.erosionIntensity * 0.1) {
+                let crackCount = floor(random(1, 4));
+                for (let i = 0; i < crackCount; i++) {
+                    let startX = random(width);
+                    let startY = random(height);
+                    stroke(orangeColor.r, orangeColor.g, orangeColor.b, random(20, 60) * params.erosionIntensity);
+                    strokeWeight(random(0.5, 2));
+                    let cx2 = startX;
+                    let cy2 = startY;
+                    let angle = random(TWO_PI);
+                    let segs = floor(random(3, 8));
+                    for (let j = 0; j < segs; j++) {
+                        let len = random(10, 40);
+                        let nx = cx2 + cos(angle) * len;
+                        let ny = cy2 + sin(angle) * len;
+                        line(cx2, cy2, nx, ny);
+                        cx2 = nx;
+                        cy2 = ny;
+                        angle += random(-0.8, 0.8);
+                    }
+                }
+            }
+
+            if (breath > 0.8) {
+                let glitchY = random(height);
+                let glitchH = random(2, 15);
+                let bgColor = hexToRgb(params.colorPalette[0]);
+                fill(bgColor.r, bgColor.g, bgColor.b, 30 * params.erosionIntensity);
+                noStroke();
+                rect(random(-5, 5), glitchY, width, glitchH);
+            }
+        }
+
+        function renderScanLines() {
+            noStroke();
+            fill(0, 0, 0, 15);
+            for (let y = 0; y < height; y += 3) {
+                rect(0, y, width, 1);
+            }
+        }
+
+        function renderVignette() {
+            let cx = width / 2;
+            let cy = height / 2;
+            let maxR = sqrt(cx * cx + cy * cy);
+            for (let i = 0; i < 3; i++) {
+                let r = maxR * (0.6 + i * 0.15);
+                let alpha = (i + 1) * 0.08;
+                noStroke();
+                fill(0, 0, 0, alpha * 255);
+                let grad = drawingContext.createRadialGradient(cx, cy, r * 0.5, cx, cy, r);
+                grad.addColorStop(0, 'rgba(0,0,0,0)');
+                grad.addColorStop(1, `rgba(0,0,0,${alpha})`);
+                drawingContext.fillStyle = grad;
+                rect(0, 0, width, height);
+            }
+        }
+
+        function updateParam(name, value) {
+            let numVal = parseFloat(value);
+            params[name] = numVal;
+            document.getElementById(name + '-value').textContent = value;
+            if (name === 'particleCount' || name === 'memoryFragments') {
+                initializeSystem();
+            }
+        }
+
+        function updateColor(colorId, value) {
+            let idx = parseInt(colorId.replace('color', '')) - 1;
+            params.colorPalette[idx] = value;
+            document.getElementById(colorId + '-value').textContent = value;
+        }
+
+        function updateSeedDisplay() {
+            document.getElementById('seed-input').value = params.seed;
+        }
+
+        function updateSeed() {
+            let newSeed = parseInt(document.getElementById('seed-input').value);
+            if (newSeed && newSeed > 0) {
+                params.seed = newSeed;
+                initializeSystem();
+            } else {
+                updateSeedDisplay();
+            }
+        }
+
+        function previousSeed() {
+            params.seed = Math.max(1, params.seed - 1);
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function nextSeed() {
+            params.seed++;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function randomSeedAndUpdate() {
+            params.seed = Math.floor(Math.random() * 999999) + 1;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function resetParameters() {
+            params = JSON.parse(JSON.stringify(defaultParams));
+            document.getElementById('particleCount').value = params.particleCount;
+            document.getElementById('particleCount-value').textContent = params.particleCount;
+            document.getElementById('gravityStrength').value = params.gravityStrength;
+            document.getElementById('gravityStrength-value').textContent = params.gravityStrength;
+            document.getElementById('breathSpeed').value = params.breathSpeed;
+            document.getElementById('breathSpeed-value').textContent = params.breathSpeed;
+            document.getElementById('erosionIntensity').value = params.erosionIntensity;
+            document.getElementById('erosionIntensity-value').textContent = params.erosionIntensity;
+            document.getElementById('memoryFragments').value = params.memoryFragments;
+            document.getElementById('memoryFragments-value').textContent = params.memoryFragments;
+            document.getElementById('pulseWaves').value = params.pulseWaves;
+            document.getElementById('pulseWaves-value').textContent = params.pulseWaves;
+            document.getElementById('color1').value = params.colorPalette[0];
+            document.getElementById('color1-value').textContent = params.colorPalette[0];
+            document.getElementById('color2').value = params.colorPalette[1];
+            document.getElementById('color2-value').textContent = params.colorPalette[1];
+            document.getElementById('color3').value = params.colorPalette[2];
+            document.getElementById('color3-value').textContent = params.colorPalette[2];
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        window.addEventListener('load', function() {
+            updateSeedDisplay();
+        });
+    </script>
+</body>
+</html>

@@ -574,6 +574,13 @@ export class GameScene extends Scene {
       const t = (this.transitionProgress - 0.3) / 0.4;
       this.transitionAlpha = 1;
       this.vignetteRadius = 0.1;
+      if (!this._bgmCrossfaded) {
+        this._bgmCrossfaded = true;
+        if (this.audio) {
+          this.audio.playBGM(this.nextDepth);
+          this.audio.playAmbient(this.nextDepth);
+        }
+      }
       for (const s of this.fallStreaks) {
         s.y -= s.speed * (dt / 1000);
         if (s.y + s.length < 0) {
@@ -598,6 +605,7 @@ export class GameScene extends Scene {
       this.transitionProgress = 0;
       this.vignetteRadius = 1;
       this._levelLoaded = false;
+      this._bgmCrossfaded = false;
     }
   }
 

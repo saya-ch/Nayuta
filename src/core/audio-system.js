@@ -59,6 +59,32 @@ export class AudioSystem {
     }
   }
 
+  _fadeBGMOut(duration = 2) {
+    if (!this.initialized || !this.bgmNodes.length) return Promise.resolve();
+    return new Promise((resolve) => {
+      const fadeTime = this.ctx.currentTime + duration;
+      for (const node of this.bgmNodes) {
+        try {
+          if (node.gain && node._isGain) {
+            node.gain.gain.linearRampToValueAtTime(0, fadeTime);
+          }
+        } catch (e) { /* ignore */ }
+      }
+      const oldNodes = [...this.bgmNodes];
+      this.bgmNodes = [];
+      this.currentBGM = null;
+      setTimeout(() => {
+        for (const node of oldNodes) {
+          try {
+            if (node.stop) node.stop();
+            if (node.disconnect) node.disconnect();
+          } catch (e) { /* ignore */ }
+        }
+        resolve();
+      }, duration * 1000 + 200);
+    });
+  }
+
   stopBGM() {
     for (const node of this.bgmNodes) {
       try {
@@ -94,53 +120,85 @@ export class AudioSystem {
     this.ambientNodes = [];
   }
 
-  playBGM(depthIndex) {
+  playBGM(depthIndex, crossfade = true) {
     if (!this.initialized) return;
     this.resume();
 
     const bgmKey = `depth_${depthIndex}`;
     if (this.currentBGM === bgmKey) return;
 
-    this.stopBGM();
+    if (crossfade && this.bgmNodes.length > 0) {
+      this._crossfadeToBGM(depthIndex, bgmKey);
+    } else {
+      this.stopBGM();
+      this.currentBGM = bgmKey;
+      this._startBGMForDepth(depthIndex);
+    }
+  }
+
+  _crossfadeToBGM(depthIndex, bgmKey) {
+    const fadeDuration = 2;
+    const oldNodes = [...this.bgmNodes];
+    this.bgmNodes = [];
     this.currentBGM = bgmKey;
 
+    for (const node of oldNodes) {
+      try {
+        if (node.gain && node._isGain) {
+          node.gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + fadeDuration);
+        }
+      } catch (e) { /* ignore */ }
+    }
+
+    this._startBGMForDepth(depthIndex, fadeDuration);
+
+    setTimeout(() => {
+      for (const node of oldNodes) {
+        try {
+          if (node.stop) node.stop();
+          if (node.disconnect) node.disconnect();
+        } catch (e) { /* ignore */ }
+      }
+    }, fadeDuration * 1000 + 500);
+  }
+
+  _startBGMForDepth(depthIndex, fadeInDuration = 2) {
     switch (depthIndex) {
       case -1:
-        this._playMenuBGM();
+        this._playMenuBGM(fadeInDuration);
         break;
       case 0:
-        this._playDepth1BGM();
+        this._playDepth1BGM(fadeInDuration);
         break;
       case 1:
-        this._playDepth2BGM();
+        this._playDepth2BGM(fadeInDuration);
         break;
       case 2:
-        this._playDepth3BGM();
+        this._playDepth3BGM(fadeInDuration);
         break;
       case 3:
-        this._playDepth4BGM();
+        this._playDepth4BGM(fadeInDuration);
         break;
     }
   }
 
-  _createDrone(freq, detune, gain, type = 'sine') {
+  _createDrone(freq, detune, gain, type = 'sine', fadeIn = 2) {
     const osc = this.ctx.createOscillator();
     const gainNode = this.ctx.createGain();
     osc.type = type;
     osc.frequency.value = freq;
     osc.detune.value = detune;
     gainNode.gain.value = 0;
-    gainNode.gain.linearRampToValueAtTime(gain, this.ctx.currentTime + 2);
+    gainNode.gain.linearRampToValueAtTime(gain, this.ctx.currentTime + fadeIn);
     osc.connect(gainNode);
     gainNode.connect(this.bgmGain);
     osc.start();
-    this.bgmNodes.push(osc, gainNode);
     gainNode._isGain = true;
-    this.bgmNodes.push(gainNode);
+    this.bgmNodes.push(osc, gainNode);
     return { osc, gainNode };
   }
 
-  _createFilteredNoise(filterFreq, filterQ, gain) {
+  _createFilteredNoise(filterFreq, filterQ, gain, fadeIn = 2) {
     const bufferSize = this.ctx.sampleRate * 4;
     const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
     const data = buffer.getChannelData(0);
@@ -158,79 +216,113 @@ export class AudioSystem {
 
     const gainNode = this.ctx.createGain();
     gainNode.gain.value = 0;
-    gainNode.gain.linearRampToValueAtTime(gain, this.ctx.currentTime + 2);
+    gainNode.gain.linearRampToValueAtTime(gain, this.ctx.currentTime + fadeIn);
 
     source.connect(filter);
     filter.connect(gainNode);
     gainNode.connect(this.bgmGain);
     source.start();
 
+    gainNode._isGain = true;
     this.bgmNodes.push(source, filter, gainNode);
     return { source, filter, gainNode };
   }
 
-  _playMenuBGM() {
-    this._createDrone(55, 0, 0.15, 'sine');
-    this._createDrone(82.5, 5, 0.08, 'sine');
-    this._createDrone(110, -3, 0.05, 'triangle');
-    this._createFilteredNoise(200, 1, 0.03);
+  _playMenuBGM(fadeIn = 2) {
+    this._createDrone(55, 0, 0.15, 'sine', fadeIn);
+    this._createDrone(82.5, 5, 0.08, 'sine', fadeIn);
+    this._createDrone(110, -3, 0.05, 'triangle', fadeIn);
+    this._createFilteredNoise(200, 1, 0.03, fadeIn);
   }
 
-  _playDepth1BGM() {
-    this._createDrone(65, 0, 0.12, 'sine');
-    this._createDrone(98, 3, 0.06, 'sine');
-    this._createDrone(130, -2, 0.04, 'triangle');
-    this._createDrone(196, 7, 0.02, 'sine');
-    this._createFilteredNoise(300, 0.5, 0.02);
+  _playDepth1BGM(fadeIn = 2) {
+    this._createDrone(65, 0, 0.12, 'sine', fadeIn);
+    this._createDrone(98, 3, 0.06, 'sine', fadeIn);
+    this._createDrone(130, -2, 0.04, 'triangle', fadeIn);
+    this._createDrone(196, 7, 0.02, 'sine', fadeIn);
+    this._createFilteredNoise(300, 0.5, 0.02, fadeIn);
   }
 
-  _playDepth2BGM() {
-    this._createDrone(55, 0, 0.1, 'sine');
-    this._createDrone(73, -5, 0.08, 'sine');
-    this._createDrone(110, 8, 0.04, 'triangle');
-    this._createDrone(146, -3, 0.03, 'sawtooth');
-    this._createFilteredNoise(250, 2, 0.04);
+  _playDepth2BGM(fadeIn = 2) {
+    this._createDrone(55, 0, 0.1, 'sine', fadeIn);
+    this._createDrone(73, -5, 0.08, 'sine', fadeIn);
+    this._createDrone(110, 8, 0.04, 'triangle', fadeIn);
+    this._createDrone(146, -3, 0.03, 'sawtooth', fadeIn);
+    this._createFilteredNoise(250, 2, 0.04, fadeIn);
   }
 
-  _playDepth3BGM() {
-    this._createDrone(41, 0, 0.1, 'sine');
-    this._createDrone(55, 10, 0.07, 'sawtooth');
-    this._createDrone(82, -8, 0.05, 'triangle');
-    this._createDrone(123, 5, 0.03, 'square');
-    this._createFilteredNoise(180, 3, 0.06);
+  _playDepth3BGM(fadeIn = 2) {
+    this._createDrone(41, 0, 0.1, 'sine', fadeIn);
+    this._createDrone(55, 10, 0.07, 'sawtooth', fadeIn);
+    this._createDrone(82, -8, 0.05, 'triangle', fadeIn);
+    this._createDrone(123, 5, 0.03, 'square', fadeIn);
+    this._createFilteredNoise(180, 3, 0.06, fadeIn);
   }
 
-  _playDepth4BGM() {
-    this._createDrone(33, 0, 0.08, 'sine');
-    this._createDrone(44, 15, 0.06, 'sawtooth');
-    this._createDrone(66, -12, 0.04, 'square');
-    this._createDrone(99, 8, 0.03, 'sawtooth');
-    this._createFilteredNoise(120, 5, 0.08);
-    this._createFilteredNoise(60, 8, 0.04);
+  _playDepth4BGM(fadeIn = 2) {
+    this._createDrone(33, 0, 0.08, 'sine', fadeIn);
+    this._createDrone(44, 15, 0.06, 'sawtooth', fadeIn);
+    this._createDrone(66, -12, 0.04, 'square', fadeIn);
+    this._createDrone(99, 8, 0.03, 'sawtooth', fadeIn);
+    this._createFilteredNoise(120, 5, 0.08, fadeIn);
+    this._createFilteredNoise(60, 8, 0.04, fadeIn);
   }
 
-  playAmbient(depthIndex) {
+  playAmbient(depthIndex, crossfade = true) {
     if (!this.initialized) return;
     this.resume();
-    this.stopAmbient();
 
+    if (crossfade && this.ambientNodes.length > 0) {
+      this._crossfadeAmbient(depthIndex);
+    } else {
+      this.stopAmbient();
+      this._startAmbientForDepth(depthIndex);
+    }
+  }
+
+  _crossfadeAmbient(depthIndex) {
+    const fadeDuration = 2.5;
+    const oldNodes = [...this.ambientNodes];
+    this.ambientNodes = [];
+
+    for (const node of oldNodes) {
+      try {
+        if (node.gain && node._isGain) {
+          node.gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + fadeDuration);
+        }
+      } catch (e) { /* ignore */ }
+    }
+
+    this._startAmbientForDepth(depthIndex, fadeDuration + 0.5);
+
+    setTimeout(() => {
+      for (const node of oldNodes) {
+        try {
+          if (node.stop) node.stop();
+          if (node.disconnect) node.disconnect();
+        } catch (e) { /* ignore */ }
+      }
+    }, fadeDuration * 1000 + 500);
+  }
+
+  _startAmbientForDepth(depthIndex, fadeIn = 3) {
     switch (depthIndex) {
       case 0:
-        this._playDepth1Ambient();
+        this._playDepth1Ambient(fadeIn);
         break;
       case 1:
-        this._playDepth2Ambient();
+        this._playDepth2Ambient(fadeIn);
         break;
       case 2:
-        this._playDepth3Ambient();
+        this._playDepth3Ambient(fadeIn);
         break;
       case 3:
-        this._playDepth4Ambient();
+        this._playDepth4Ambient(fadeIn);
         break;
     }
   }
 
-  _createAmbientNoise(filterFreq, filterQ, gain, lfoFreq, lfoDepth) {
+  _createAmbientNoise(filterFreq, filterQ, gain, lfoFreq, lfoDepth, fadeIn = 3) {
     const bufferSize = this.ctx.sampleRate * 6;
     const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
     const data = buffer.getChannelData(0);
@@ -260,35 +352,36 @@ export class AudioSystem {
 
     const gainNode = this.ctx.createGain();
     gainNode.gain.value = 0;
-    gainNode.gain.linearRampToValueAtTime(gain, this.ctx.currentTime + 3);
+    gainNode.gain.linearRampToValueAtTime(gain, this.ctx.currentTime + fadeIn);
 
     source.connect(filter);
     filter.connect(gainNode);
     gainNode.connect(this.ambientGain);
     source.start();
 
+    gainNode._isGain = true;
     this.ambientNodes.push(source, filter, gainNode);
   }
 
-  _playDepth1Ambient() {
-    this._createAmbientNoise(400, 0.3, 0.15, 0.1, 30);
-    this._createAmbientNoise(800, 0.5, 0.05, 0.05, 50);
+  _playDepth1Ambient(fadeIn = 3) {
+    this._createAmbientNoise(400, 0.3, 0.15, 0.1, 30, fadeIn);
+    this._createAmbientNoise(800, 0.5, 0.05, 0.05, 50, fadeIn);
   }
 
-  _playDepth2Ambient() {
-    this._createAmbientNoise(300, 0.4, 0.12, 0.08, 40);
-    this._createAmbientNoise(600, 0.6, 0.06, 0.15, 60);
+  _playDepth2Ambient(fadeIn = 3) {
+    this._createAmbientNoise(300, 0.4, 0.12, 0.08, 40, fadeIn);
+    this._createAmbientNoise(600, 0.6, 0.06, 0.15, 60, fadeIn);
   }
 
-  _playDepth3Ambient() {
-    this._createAmbientNoise(200, 0.5, 0.15, 0.2, 50);
-    this._createAmbientNoise(500, 0.8, 0.08, 0.3, 80);
+  _playDepth3Ambient(fadeIn = 3) {
+    this._createAmbientNoise(200, 0.5, 0.15, 0.2, 50, fadeIn);
+    this._createAmbientNoise(500, 0.8, 0.08, 0.3, 80, fadeIn);
   }
 
-  _playDepth4Ambient() {
-    this._createAmbientNoise(100, 0.8, 0.2, 0.5, 40);
-    this._createAmbientNoise(300, 1.0, 0.1, 0.8, 100);
-    this._createAmbientNoise(50, 1.2, 0.08, 1.0, 20);
+  _playDepth4Ambient(fadeIn = 3) {
+    this._createAmbientNoise(100, 0.8, 0.2, 0.5, 40, fadeIn);
+    this._createAmbientNoise(300, 1.0, 0.1, 0.8, 100, fadeIn);
+    this._createAmbientNoise(50, 1.2, 0.08, 1.0, 20, fadeIn);
   }
 
   playSFX(type) {
