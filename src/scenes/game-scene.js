@@ -115,6 +115,10 @@ export class GameScene extends Scene {
     this.secretParticles = [];
     this.zoneEffects = [];
     this.zoneWarpCooldown = 0;
+    this.levelStartTime = 0;
+    this.speedrunTime = 0;
+    this.speedrunVisible = false;
+    this.speedrunBestTimes = {};
   }
 
   init() {
@@ -138,6 +142,10 @@ export class GameScene extends Scene {
     this._preloadNextLevelResources();
     this._playTimeAccum = 0;
     this._assistSettings = this._loadAssistSettings();
+    this.levelStartTime = performance.now();
+    this.speedrunTime = 0;
+    this.speedrunVisible = true;
+    this._loadSpeedrunBest();
   }
 
   _loadAssistSettings() {
@@ -315,6 +323,8 @@ export class GameScene extends Scene {
     this.erosionLevel = 0;
     this.interactHint = '';
     this.interactHintAlpha = 0;
+    this.levelStartTime = performance.now();
+    this.speedrunTime = 0;
     this.dying = false;
     this.respawning = false;
     this.deathTimer = 0;
@@ -536,6 +546,10 @@ export class GameScene extends Scene {
       this._playTimeAccum = 0;
     }
 
+    if (this.speedrunVisible && !this.transitioning && !this.dying && !this.respawning) {
+      this.speedrunTime = (performance.now() - this.levelStartTime) / 1000;
+    }
+
     if (this.transitioning) {
       this._updateTransition(dt);
       return;
@@ -567,6 +581,7 @@ export class GameScene extends Scene {
     if (this.levelComplete) {
       this.levelCompleteAlpha = Math.min(1, this.levelCompleteAlpha + dt * 0.001);
       if (this.levelCompleteAlpha >= 1 && this.input.justPressed('Enter')) {
+        this._checkSpeedrunRecord();
         saveSystem.saveLevelProgress(this.depth, this.anchorCount, this.anchors.length, true);
         this.depth++;
         if (this.depth >= 4) {
@@ -2173,6 +2188,8 @@ export class GameScene extends Scene {
 
     this._renderMinimap(ctx, w, h, level);
 
+    this._renderSpeedrunTimer(ctx, w, h);
+
     const assistActive = this._assistSettings.invincible === 1 ||
       this._assistSettings.infiniteJump === 1 ||
       this._assistSettings.lowGravity === 1 ||
@@ -2270,6 +2287,10 @@ export class GameScene extends Scene {
     ctx.font = '300 16px "Segoe UI", system-ui, sans-serif';
     ctx.fillStyle = COLORS.STARDUST_GRAY;
     ctx.fillText(level.completionSubtext, w / 2, h * 0.5);
+
+    ctx.font = '400 14px "Courier New", monospace';
+    ctx.fillStyle = 'rgba(0, 255, 212, 0.5)';
+    ctx.fillText(`用时 ${this._formatSpeedrunTime(this.speedrunTime)}`, w / 2, h * 0.55);
 
     if (this.levelCompleteAlpha >= 1) {
       ctx.globalAlpha = 0.4 + 0.3 * Math.sin(this.time * 0.003);
@@ -3310,6 +3331,82 @@ export class GameScene extends Scene {
         ctx.fillRect(0, 0, w, h);
       }
     }
+  }
+
+  _renderSpeedrunTimer(ctx, w, h) {
+    if (!this.speedrunVisible) return;
+
+    const timerX = w / 2;
+    const timerY = 22;
+
+    const timeStr = this._formatSpeedrunTime(this.speedrunTime);
+    const bestKey = `depth_${this.depth}`;
+    const bestTime = this.speedrunBestTimes[bestKey];
+    const isBest = bestTime !== undefined && this.speedrunTime <= bestTime;
+
+    const breathCycle = Math.sin(this.time * 0.002) * 0.15 + 0.85;
+
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    ctx.font = '400 13px "Courier New", monospace';
+    ctx.fillStyle = isBest
+      ? `rgba(0, 255, 212, ${0.6 * breathCycle})`
+      : `rgba(107, 107, 141, ${0.45 * breathCycle})`;
+    ctx.fillText(timeStr, timerX, timerY);
+
+    if (bestTime !== undefined) {
+      ctx.font = '300 9px "Courier New", monospace';
+      ctx.fillStyle = 'rgba(0, 255, 212, 0.3)';
+      ctx.fillText(`最佳 ${this._formatSpeedrunTime(bestTime)}`, timerX, timerY + 14);
+    }
+
+    if (this.depth >= 2) {
+      const glitchChars = '!@#$%^&*<>[]{}|~';
+      let glitchedTime = timeStr;
+      if (Math.random() < 0.05) {
+        const idx = Math.floor(Math.random() * glitchedTime.length);
+        glitchedTime = glitchedTime.substring(0, idx) + glitchChars[Math.floor(Math.random() * glitchChars.length)] + glitchedTime.substring(idx + 1);
+      }
+    }
+
+    ctx.restore();
+  }
+
+  _formatSpeedrunTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    const ms = Math.floor((seconds % 1) * 100);
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+  }
+
+  _loadSpeedrunBest() {
+    try {
+      const data = localStorage.getItem('nayuta_speedrun');
+      if (data) {
+        this.speedrunBestTimes = JSON.parse(data);
+      }
+    } catch (e) {
+      this.speedrunBestTimes = {};
+    }
+  }
+
+  _saveSpeedrunBest() {
+    try {
+      localStorage.setItem('nayuta_speedrun', JSON.stringify(this.speedrunBestTimes));
+    } catch (e) {}
+  }
+
+  _checkSpeedrunRecord() {
+    const key = `depth_${this.depth}`;
+    const current = this.speedrunBestTimes[key];
+    if (current === undefined || this.speedrunTime < current) {
+      this.speedrunBestTimes[key] = this.speedrunTime;
+      this._saveSpeedrunBest();
+      return true;
+    }
+    return false;
   }
 
   _renderMinimap(ctx, w, h, level) {

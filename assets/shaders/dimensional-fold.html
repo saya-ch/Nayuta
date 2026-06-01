@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dimensional Fold — 深渊维度折叠</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --anthropic-dark: #141413;
+            --anthropic-light: #faf9f5;
+            --anthropic-mid-gray: #b0aea5;
+            --anthropic-light-gray: #e8e6dc;
+            --anthropic-orange: #d97757;
+            --anthropic-blue: #6a9bcc;
+            --anthropic-green: #788c5d;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, var(--anthropic-light) 0%, #f5f3ee 100%);
+            min-height: 100vh;
+            color: var(--anthropic-dark);
+        }
+        .container { display: flex; min-height: 100vh; padding: 20px; gap: 20px; }
+        .sidebar {
+            width: 320px; flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 24px; border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(20, 20, 19, 0.1);
+            overflow-y: auto; overflow-x: hidden;
+        }
+        .sidebar h1 { font-family: 'Lora', serif; font-size: 24px; font-weight: 500; color: var(--anthropic-dark); margin-bottom: 8px; }
+        .sidebar .subtitle { color: var(--anthropic-mid-gray); font-size: 14px; margin-bottom: 32px; line-height: 1.4; }
+        .control-section { margin-bottom: 32px; }
+        .control-section h3 { font-size: 16px; font-weight: 600; color: var(--anthropic-dark); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .control-section h3::before { content: '•'; color: var(--anthropic-orange); font-weight: bold; }
+        .seed-input {
+            width: 100%; background: var(--anthropic-light); padding: 12px;
+            border-radius: 8px; font-family: 'Courier New', monospace; font-size: 14px;
+            margin-bottom: 12px; border: 1px solid var(--anthropic-light-gray); text-align: center;
+        }
+        .seed-input:focus { outline: none; border-color: var(--anthropic-orange); box-shadow: 0 0 0 2px rgba(217, 119, 87, 0.1); background: white; }
+        .seed-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+        .regen-button { margin-bottom: 0; }
+        .control-group { margin-bottom: 20px; }
+        .control-group label { display: block; font-size: 14px; font-weight: 500; color: var(--anthropic-dark); margin-bottom: 8px; }
+        .slider-container { display: flex; align-items: center; gap: 12px; }
+        .slider-container input[type="range"] { flex: 1; height: 4px; background: var(--anthropic-light-gray); border-radius: 2px; outline: none; -webkit-appearance: none; }
+        .slider-container input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; background: var(--anthropic-orange); border-radius: 50%; cursor: pointer; transition: all 0.2s ease; }
+        .slider-container input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.1); background: #c86641; }
+        .slider-container input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; background: var(--anthropic-orange); border-radius: 50%; border: none; cursor: pointer; }
+        .value-display { font-family: 'Courier New', monospace; font-size: 12px; color: var(--anthropic-mid-gray); min-width: 60px; text-align: right; }
+        .color-group { margin-bottom: 16px; }
+        .color-group label { display: block; font-size: 12px; color: var(--anthropic-mid-gray); margin-bottom: 4px; }
+        .color-picker-container { display: flex; align-items: center; gap: 8px; }
+        .color-picker-container input[type="color"] { width: 32px; height: 32px; border: none; border-radius: 6px; cursor: pointer; background: none; padding: 0; }
+        .color-value { font-family: 'Courier New', monospace; font-size: 12px; color: var(--anthropic-mid-gray); }
+        .button { background: var(--anthropic-orange); color: white; border: none; padding: 10px 16px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s ease; width: 100%; }
+        .button:hover { background: #c86641; transform: translateY(-1px); }
+        .button:active { transform: translateY(0); }
+        .button.secondary { background: var(--anthropic-blue); }
+        .button.secondary:hover { background: #5a8bb8; }
+        .button.tertiary { background: var(--anthropic-green); }
+        .button.tertiary:hover { background: #6b7b52; }
+        .button-row { display: flex; gap: 8px; }
+        .button-row .button { flex: 1; }
+        .canvas-area { flex: 1; display: flex; align-items: center; justify-content: center; min-width: 0; }
+        #canvas-container { width: 100%; max-width: 1000px; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 40px rgba(20, 20, 19, 0.1); background: #0A0E1A; }
+        #canvas-container canvas { display: block; width: 100% !important; height: auto !important; }
+        .loading { display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--anthropic-mid-gray); }
+        @media (max-width: 600px) { .container { flex-direction: column; } .sidebar { width: 100%; } .canvas-area { padding: 20px; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h1>Dimensional Fold</h1>
+            <div class="subtitle">深渊维度折叠 — 空间在深渊中被折叠、压缩和展开</div>
+
+            <div class="control-section">
+                <h3>Seed</h3>
+                <input type="number" id="seed-input" class="seed-input" value="42" onchange="updateSeed()">
+                <div class="seed-controls">
+                    <button class="button secondary" onclick="previousSeed()">← Prev</button>
+                    <button class="button secondary" onclick="nextSeed()">Next →</button>
+                </div>
+                <button class="button tertiary regen-button" onclick="randomSeedAndUpdate()">↻ Random</button>
+            </div>
+
+            <div class="control-section">
+                <h3>Parameters</h3>
+                <div class="control-group">
+                    <label>网格密度</label>
+                    <div class="slider-container">
+                        <input type="range" id="gridDensity" min="8" max="30" step="2" value="16" oninput="updateParam('gridDensity', this.value)">
+                        <span class="value-display" id="gridDensity-value">16</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>折叠强度</label>
+                    <div class="slider-container">
+                        <input type="range" id="foldStrength" min="0.1" max="2.0" step="0.1" value="0.8" oninput="updateParam('foldStrength', this.value)">
+                        <span class="value-display" id="foldStrength-value">0.8</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>共振频率</label>
+                    <div class="slider-container">
+                        <input type="range" id="resonanceFreq" min="0.1" max="2.0" step="0.1" value="0.5" oninput="updateParam('resonanceFreq', this.value)">
+                        <span class="value-display" id="resonanceFreq-value">0.5</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>碎片数量</label>
+                    <div class="slider-container">
+                        <input type="range" id="fragmentCount" min="5" max="40" step="5" value="15" oninput="updateParam('fragmentCount', this.value)">
+                        <span class="value-display" id="fragmentCount-value">15</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>侵蚀深度</label>
+                    <div class="slider-container">
+                        <input type="range" id="erosionDepth" min="0.0" max="1.0" step="0.05" value="0.3" oninput="updateParam('erosionDepth', this.value)">
+                        <span class="value-display" id="erosionDepth-value">0.3</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>脉冲强度</label>
+                    <div class="slider-container">
+                        <input type="range" id="pulseIntensity" min="0" max="5" step="1" value="3" oninput="updateParam('pulseIntensity', this.value)">
+                        <span class="value-display" id="pulseIntensity-value">3</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Colors</h3>
+                <div class="color-group">
+                    <label>深渊底色</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color1" value="#0A0E1A" onchange="updateColor('color1', this.value)">
+                        <span class="color-value" id="color1-value">#0A0E1A</span>
+                    </div>
+                </div>
+                <div class="color-group">
+                    <label>荧光青</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color2" value="#00FFD4" onchange="updateColor('color2', this.value)">
+                        <span class="color-value" id="color2-value">#00FFD4</span>
+                    </div>
+                </div>
+                <div class="color-group">
+                    <label>虚空橙</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color3" value="#FF6B35" onchange="updateColor('color3', this.value)">
+                        <span class="color-value" id="color3-value">#FF6B35</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Actions</h3>
+                <div class="button-row">
+                    <button class="button" onclick="resetParameters()">Reset</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="canvas-area">
+            <div id="canvas-container">
+                <div class="loading">Initializing Dimensional Fold...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let params = {
+            seed: 42,
+            gridDensity: 16,
+            foldStrength: 0.8,
+            resonanceFreq: 0.5,
+            fragmentCount: 15,
+            erosionDepth: 0.3,
+            pulseIntensity: 3,
+            colorPalette: ['#0A0E1A', '#00FFD4', '#FF6B35']
+        };
+        let defaultParams = { ...params };
+
+        let gridNodes = [];
+        let fragments = [];
+        let pulseRings = [];
+        let cracks = [];
+        let time = 0;
+
+        function hexToRgb(hex) {
+            return {
+                r: parseInt(hex.slice(1, 3), 16),
+                g: parseInt(hex.slice(3, 5), 16),
+                b: parseInt(hex.slice(5, 7), 16)
+            };
+        }
+
+        function setup() {
+            let canvas = createCanvas(1200, 800);
+            canvas.parent('canvas-container');
+            initializeSystem();
+            document.querySelector('.loading').style.display = 'none';
+        }
+
+        function initializeSystem() {
+            randomSeed(params.seed);
+            noiseSeed(params.seed);
+            time = 0;
+            gridNodes = [];
+            fragments = [];
+            pulseRings = [];
+            cracks = [];
+
+            let cols = params.gridDensity;
+            let rows = floor(cols * 800 / 1200);
+            let spacingX = 1200 / (cols + 1);
+            let spacingY = 800 / (rows + 1);
+
+            for (let j = 0; j <= rows; j++) {
+                for (let i = 0; i <= cols; i++) {
+                    gridNodes.push({
+                        baseX: spacingX * (i + 0.5),
+                        baseY: spacingY * (j + 0.5),
+                        x: spacingX * (i + 0.5),
+                        y: spacingY * (j + 0.5),
+                        col: i, row: j,
+                        offsetX: 0, offsetY: 0,
+                        foldAmount: 0,
+                        velocity: 0,
+                    });
+                }
+            }
+
+            let shapes = ['hexagon', 'triangle', 'diamond'];
+            for (let i = 0; i < params.fragmentCount; i++) {
+                let angle = random() * TWO_PI;
+                let dist = random() * 300;
+                fragments.push({
+                    x: 600 + cos(angle) * dist,
+                    y: 400 + sin(angle) * dist,
+                    vx: (random() - 0.5) * 0.5,
+                    vy: (random() - 0.5) * 0.5,
+                    size: 6 + random() * 14,
+                    rotation: random() * TWO_PI,
+                    rotSpeed: (random() - 0.5) * 0.003,
+                    shape: shapes[floor(random() * 3)],
+                    alpha: 0.2 + random() * 0.5,
+                    dissolve: 0,
+                    phase: random() * TWO_PI,
+                    orbitAngle: angle,
+                    orbitDist: dist,
+                    orbitSpeed: (random() - 0.5) * 0.001,
+                });
+            }
+        }
+
+        function draw() {
+            let dt = deltaTime;
+            time += dt;
+
+            let bg = hexToRgb(params.colorPalette[0]);
+            let cyan = hexToRgb(params.colorPalette[1]);
+            let orange = hexToRgb(params.colorPalette[2]);
+
+            background(bg.r, bg.g, bg.b);
+
+            let grad = drawingContext.createLinearGradient(0, 0, 0, 800);
+            grad.addColorStop(0, `rgba(${bg.r + 10}, ${bg.g + 15}, ${bg.b + 30}, 1)`);
+            grad.addColorStop(0.5, `rgba(${bg.r}, ${bg.g}, ${bg.b}, 1)`);
+            grad.addColorStop(1, `rgba(${max(0, bg.r - 5)}, ${max(0, bg.g - 5)}, ${max(0, bg.b - 5)}, 1)`);
+            drawingContext.fillStyle = grad;
+            drawingContext.fillRect(0, 0, 1200, 800);
+
+            updateGrid(dt);
+            updateFragments(dt);
+            updatePulseRings(dt);
+            updateCracks(dt);
+
+            if (random() < 0.003 * params.pulseIntensity) {
+                spawnPulse();
+            }
+
+            renderGrid(cyan, orange);
+            renderCracks(orange);
+            renderPulseRings(cyan, orange);
+            renderFragments(cyan, orange);
+            renderScanLines();
+        }
+
+        function updateGrid(dt) {
+            let t = time * 0.001;
+            let fs = params.foldStrength;
+            let rf = params.resonanceFreq;
+
+            for (let node of gridNodes) {
+                let nx = node.baseX * 0.005;
+                let ny = node.baseY * 0.005;
+
+                let wave1 = sin(nx * 3 + t * rf) * cos(ny * 2 + t * rf * 0.7);
+                let wave2 = sin(nx * 5 - t * rf * 1.3) * sin(ny * 4 + t * rf * 0.5);
+                let wave3 = cos(nx * 7 + ny * 3 + t * rf * 0.8);
+
+                let foldNoise = noise(nx * 2 + t * 0.3, ny * 2 + t * 0.2);
+                let foldThreshold = 0.5 + 0.2 * sin(t * rf);
+
+                node.foldAmount = foldNoise > foldThreshold ? (foldNoise - foldThreshold) * fs * 3 : 0;
+
+                let targetX = wave1 * 15 * fs + wave3 * 8 * fs + node.foldAmount * 30 * (noise(nx + t) - 0.5);
+                let targetY = wave2 * 15 * fs + wave3 * 8 * fs + node.foldAmount * 30 * (noise(ny + t) - 0.5);
+
+                node.offsetX += (targetX - node.offsetX) * 0.05;
+                node.offsetY += (targetY - node.offsetY) * 0.05;
+
+                node.x = node.baseX + node.offsetX;
+                node.y = node.baseY + node.offsetY;
+            }
+        }
+
+        function updateFragments(dt) {
+            let t = time * 0.001;
+            for (let frag of fragments) {
+                frag.orbitAngle += frag.orbitSpeed * dt;
+                let targetX = 600 + cos(frag.orbitAngle) * frag.orbitDist;
+                let targetY = 400 + sin(frag.orbitAngle) * frag.orbitDist;
+
+                let noiseForceX = (noise(frag.x * 0.003 + t, frag.y * 0.003) - 0.5) * 0.3;
+                let noiseForceY = (noise(frag.x * 0.003, frag.y * 0.003 + t) - 0.5) * 0.3;
+
+                frag.vx += (targetX - frag.x) * 0.0005 + noiseForceX;
+                frag.vy += (targetY - frag.y) * 0.0005 + noiseForceY;
+                frag.vx *= 0.98;
+                frag.vy *= 0.98;
+
+                frag.x += frag.vx;
+                frag.y += frag.vy;
+                frag.rotation += frag.rotSpeed * dt;
+
+                let distFromCenter = dist(frag.x, frag.y, 600, 400);
+                frag.dissolve = constrain(distFromCenter / 400, 0, 1) * params.erosionDepth;
+            }
+        }
+
+        function updatePulseRings(dt) {
+            for (let i = pulseRings.length - 1; i >= 0; i--) {
+                let pr = pulseRings[i];
+                pr.radius += dt * 0.12;
+                pr.alpha *= 0.994;
+                if (pr.alpha < 0.01 || pr.radius > 600) {
+                    pulseRings.splice(i, 1);
+                }
+            }
+        }
+
+        function updateCracks(dt) {
+            for (let i = cracks.length - 1; i >= 0; i--) {
+                cracks[i].life -= dt;
+                cracks[i].alpha *= 0.997;
+                if (cracks[i].life <= 0 || cracks[i].alpha < 0.01) {
+                    cracks.splice(i, 1);
+                }
+            }
+        }
+
+        function spawnPulse() {
+            pulseRings.push({
+                x: 600 + (random() - 0.5) * 200,
+                y: 400 + (random() - 0.5) * 100,
+                radius: 5,
+                alpha: 0.2 + random() * 0.15,
+            });
+
+            for (let i = 0; i < 2; i++) {
+                let angle = random() * TWO_PI;
+                let segments = [];
+                let sx = 600 + (random() - 0.5) * 100;
+                let sy = 400 + (random() - 0.5) * 50;
+                let ca = angle;
+                let totalSeg = 3 + floor(random() * 4);
+                for (let j = 0; j < totalSeg; j++) {
+                    let len = 10 + random() * 30;
+                    let nx = sx + cos(ca) * len;
+                    let ny = sy + sin(ca) * len;
+                    segments.push({ x1: sx, y1: sy, x2: nx, y2: ny });
+                    sx = nx; sy = ny;
+                    ca += (random() - 0.5) * 1.2;
+                }
+                cracks.push({ segments, growth: 0, maxGrowth: totalSeg, alpha: 0.2 + random() * 0.2, life: 1500 + random() * 2500 });
+            }
+
+            for (let frag of fragments) {
+                frag.rotSpeed += (random() - 0.5) * 0.002;
+            }
+        }
+
+        function renderGrid(cyan, orange) {
+            let cols = params.gridDensity;
+            let rows = floor(cols * 800 / 1200);
+
+            strokeWeight(0.5);
+            for (let j = 0; j <= rows; j++) {
+                for (let i = 0; i <= cols; i++) {
+                    let idx = j * (cols + 1) + i;
+                    let node = gridNodes[idx];
+                    if (!node) continue;
+
+                    let foldT = node.foldAmount;
+                    let cr = lerp(cyan.r, orange.r, foldT);
+                    let cg = lerp(cyan.g, orange.g, foldT);
+                    let cb = lerp(cyan.b, orange.b, foldT);
+                    let alpha = 0.08 + foldT * 0.25;
+
+                    if (i < cols) {
+                        let rightIdx = j * (cols + 1) + i + 1;
+                        let right = gridNodes[rightIdx];
+                        if (right) {
+                            stroke(cr, cg, cb, alpha * 255);
+                            line(node.x, node.y, right.x, right.y);
+                        }
+                    }
+                    if (j < rows) {
+                        let belowIdx = (j + 1) * (cols + 1) + i;
+                        let below = gridNodes[belowIdx];
+                        if (below) {
+                            stroke(cr, cg, cb, alpha * 255);
+                            line(node.x, node.y, below.x, below.y);
+                        }
+                    }
+
+                    if (foldT > 0.1) {
+                        noStroke();
+                        fill(cr, cg, cb, (alpha + foldT * 0.3) * 255);
+                        ellipse(node.x, node.y, 2 + foldT * 4, 2 + foldT * 4);
+                    }
+                }
+            }
+        }
+
+        function renderFragments(cyan, orange) {
+            for (let frag of fragments) {
+                if (frag.alpha < 0.01) continue;
+                let dissolveT = frag.dissolve;
+                let cr = lerp(cyan.r, orange.r, dissolveT);
+                let cg = lerp(cyan.g, orange.g, dissolveT);
+                let cb = lerp(cyan.b, orange.b, dissolveT);
+
+                push();
+                translate(frag.x, frag.y);
+                rotate(frag.rotation);
+                fill(cr, cg, cb, frag.alpha * 255 * (1 - dissolveT * 0.5));
+                noStroke();
+
+                switch (frag.shape) {
+                    case 'hexagon':
+                        beginShape();
+                        for (let i = 0; i < 6; i++) {
+                            let a = (i / 6) * TWO_PI - PI / 6;
+                            vertex(cos(a) * frag.size * 0.7, sin(a) * frag.size * 0.7);
+                        }
+                        endShape(CLOSE);
+                        break;
+                    case 'triangle':
+                        beginShape();
+                        vertex(0, -frag.size);
+                        vertex(frag.size * 0.866, frag.size * 0.5);
+                        vertex(-frag.size * 0.866, frag.size * 0.5);
+                        endShape(CLOSE);
+                        break;
+                    case 'diamond':
+                        beginShape();
+                        vertex(0, -frag.size);
+                        vertex(frag.size * 0.6, 0);
+                        vertex(0, frag.size);
+                        vertex(-frag.size * 0.6, 0);
+                        endShape(CLOSE);
+                        break;
+                }
+
+                if (frag.alpha > 0.3 && dissolveT < 0.5) {
+                    fill(cr, cg, cb, frag.alpha * 0.1 * 255);
+                    ellipse(0, 0, frag.size * 3, frag.size * 3);
+                }
+
+                pop();
+            }
+        }
+
+        function renderPulseRings(cyan, orange) {
+            for (let pr of pulseRings) {
+                let progress = pr.radius / 600;
+                let cr = lerp(cyan.r, orange.r, progress);
+                let cg = lerp(cyan.g, orange.g, progress);
+                let cb = lerp(cyan.b, orange.b, progress);
+
+                drawingContext.save();
+                drawingContext.globalAlpha = pr.alpha;
+                drawingContext.strokeStyle = `rgb(${cr}, ${cg}, ${cb})`;
+                drawingContext.lineWidth = 1.5 * (1 - progress * 0.5);
+                drawingContext.beginPath();
+                drawingContext.ellipse(pr.x, pr.y, pr.radius, pr.radius * 0.6, 0, 0, TWO_PI);
+                drawingContext.stroke();
+                drawingContext.restore();
+            }
+        }
+
+        function renderCracks(orange) {
+            drawingContext.save();
+            for (let crack of cracks) {
+                crack.growth = min(crack.growth + 0.05, crack.maxGrowth);
+                let visibleSegs = floor(crack.growth);
+                for (let i = 0; i < min(visibleSegs, crack.segments.length); i++) {
+                    let seg = crack.segments[i];
+                    let flicker = sin(time * 0.005 + i * 0.5) * 0.3 + 0.7;
+                    drawingContext.globalAlpha = crack.alpha * flicker;
+                    drawingContext.strokeStyle = `rgb(${orange.r}, ${orange.g}, ${orange.b})`;
+                    drawingContext.lineWidth = 1;
+                    drawingContext.shadowColor = `rgb(${orange.r}, ${orange.g}, ${orange.b})`;
+                    drawingContext.shadowBlur = 4;
+                    drawingContext.beginPath();
+                    drawingContext.moveTo(seg.x1, seg.y1);
+                    drawingContext.lineTo(seg.x2, seg.y2);
+                    drawingContext.stroke();
+                }
+            }
+            drawingContext.shadowBlur = 0;
+            drawingContext.restore();
+        }
+
+        function renderScanLines() {
+            drawingContext.save();
+            drawingContext.globalAlpha = 0.012 + params.erosionDepth * 0.01;
+            drawingContext.fillStyle = `rgba(10, 14, 26, 1)`;
+            for (let y = 0; y < 800; y += 3) {
+                drawingContext.fillRect(0, y, 1200, 1);
+            }
+            drawingContext.restore();
+        }
+
+        function updateParam(name, value) {
+            let numVal = parseFloat(value);
+            params[name] = numVal;
+            document.getElementById(name + '-value').textContent = numVal;
+            if (name === 'gridDensity' || name === 'fragmentCount') {
+                initializeSystem();
+            }
+        }
+
+        function updateColor(colorId, value) {
+            let idx = parseInt(colorId.replace('color', '')) - 1;
+            params.colorPalette[idx] = value;
+            document.getElementById(colorId + '-value').textContent = value;
+        }
+
+        function updateSeedDisplay() { document.getElementById('seed-input').value = params.seed; }
+        function updateSeed() {
+            let newSeed = parseInt(document.getElementById('seed-input').value);
+            if (newSeed && newSeed > 0) { params.seed = newSeed; initializeSystem(); }
+            else { updateSeedDisplay(); }
+        }
+        function previousSeed() { params.seed = Math.max(1, params.seed - 1); updateSeedDisplay(); initializeSystem(); }
+        function nextSeed() { params.seed = params.seed + 1; updateSeedDisplay(); initializeSystem(); }
+        function randomSeedAndUpdate() { params.seed = Math.floor(Math.random() * 999999) + 1; updateSeedDisplay(); initializeSystem(); }
+
+        function resetParameters() {
+            params = { ...defaultParams };
+            document.getElementById('gridDensity').value = params.gridDensity;
+            document.getElementById('gridDensity-value').textContent = params.gridDensity;
+            document.getElementById('foldStrength').value = params.foldStrength;
+            document.getElementById('foldStrength-value').textContent = params.foldStrength;
+            document.getElementById('resonanceFreq').value = params.resonanceFreq;
+            document.getElementById('resonanceFreq-value').textContent = params.resonanceFreq;
+            document.getElementById('fragmentCount').value = params.fragmentCount;
+            document.getElementById('fragmentCount-value').textContent = params.fragmentCount;
+            document.getElementById('erosionDepth').value = params.erosionDepth;
+            document.getElementById('erosionDepth-value').textContent = params.erosionDepth;
+            document.getElementById('pulseIntensity').value = params.pulseIntensity;
+            document.getElementById('pulseIntensity-value').textContent = params.pulseIntensity;
+            document.getElementById('color1').value = params.colorPalette[0];
+            document.getElementById('color1-value').textContent = params.colorPalette[0];
+            document.getElementById('color2').value = params.colorPalette[1];
+            document.getElementById('color2-value').textContent = params.colorPalette[1];
+            document.getElementById('color3').value = params.colorPalette[2];
+            document.getElementById('color3-value').textContent = params.colorPalette[2];
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        window.addEventListener('load', function () { updateSeedDisplay(); });
+    </script>
+</body>
+</html>

@@ -81,6 +81,8 @@
 - 深渊裂隙生成器：assets/shaders/abyssal-rift.html（空间撕裂+维度渗透+虚空之眼+侵蚀蔓延+维度碎片）
 - 深渊侵蚀蔓延生成器：assets/shaders/abyssal-consummation.html（侵蚀裂痕+溶解区域+维度碎片+记忆回响+完满脉冲）
 - 深渊意识流动生成器：assets/shaders/abyssal-consciousness.html（意识流+记忆碎片岛屿+时间扭曲+自我溶解+意识核心）
+- 深渊时间沙漏生成器：assets/shaders/abyssal-hourglass.html（双向沙漏引力场+沙粒溶解+时间裂缝+回声脉冲+咽喉发光）
+- 深渊维度折叠生成器：assets/shaders/dimensional-fold.html（折叠网格+维度碎片+共振脉冲+时间裂缝+侵蚀叠加）
 
 ## 区域效果视觉规范
 - 光之领域（浅层）：荧光青光球漂浮（5-6个/区域），区域边界荧光青半透明脉冲，玩家进入时获得荧光青光晕
@@ -181,3 +183,14 @@
 - 意识核心：中心呼吸式光晕(15~40px)+5条螺旋臂
 - 时间扭曲：靠近碎片区域轨迹密集(时间变慢)，远离区域轨迹稀疏(时间加速)
 - 自我溶解：画面边缘粒子逐渐失去颜色和形状，虚空橙侵蚀裂纹
+
+## 速度跑计时器视觉规范
+- 位置：画面顶部中央，timerY=22px
+- 格式：MM:SS.ms（等宽字体 Courier New 13px）
+- 默认颜色：星尘灰0.45 alpha，呼吸脉冲(0.85~1.0)
+- 最佳记录状态：荧光青0.6 alpha，呼吸脉冲
+- 最佳记录文字：Courier New 9px，荧光青0.3 alpha，显示在计时器下方14px
+- 关卡完成用时：Courier New 14px，荧光青0.5 alpha，显示在完成副标题下方
+- 侵蚀效果：深度≥2时计时器文字5%概率随机乱码（与深度文字侵蚀一致）
+- 计时暂停：过渡/死亡/重生期间暂停计时
+- 记录存储：localStorage nayuta_speedrun，按深度独立记录

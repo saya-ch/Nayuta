@@ -1,5 +1,53 @@
 # CHANGELOG.md — Nayuta 迭代日志
 
+## [2026-06-01 14:10 迭代21] - 深渊时间与维度折叠 | 所用 skills: algorithmic-art, frontend-skill | 完成的任务 ID: T070, T071, T072 | 备注: 自检通过，构建成功
+
+### 完成内容
+- **深渊时间沙漏 shader 生成器 (T070)**：使用 algorithmic-art 创建了"Abyssal Hourglass"交互式时间沙漏生成器：
+  - 1200x800 横向画布，双向沙漏引力场系统
+  - 沙粒从上方漏斗坠落穿过咽喉，周期性引力反转使沙粒上升（记忆复苏）
+  - 沙粒溶解系统：通过咽喉次数驱动颜色从荧光青渐变为虚空橙
+  - 时间裂缝：翻转时从咽喉扩展的分支断裂线，虚空橙脉动发光
+  - 回声脉冲：翻转触发的椭圆冲击波，从咽喉向两端扩散
+  - 咽喉发光：呼吸式荧光青光晕，翻转时渐变为虚空橙
+  - 可调参数：沙粒数量/引力强度/翻转周期/咽喉宽度/侵蚀强度/回声脉冲
+  - 颜色选择器：深渊底色/荧光青/虚空橙，遵循 STYLE_GUIDE.md
+  - 算法哲学文档：abyssal-hourglass-philosophy.md
+- **游戏内速度跑计时器 HUD (T071)**：使用 frontend-skill 实现了完整的速度跑计时系统：
+  - 实时计时器：画面顶部中央显示当前关卡用时（MM:SS.ms 格式，等宽字体）
+  - 最佳记录追踪：每层深渊独立最佳时间，localStorage 持久化存储
+  - 关卡完成展示：完成界面显示本次用时
+  - 侵蚀效果：深度≥2时计时器文字随机乱码（与深度文字侵蚀一致）
+  - 呼吸脉冲：计时器透明度随呼吸周期微变，深渊美学风格
+  - 计时暂停：过渡/死亡/重生期间暂停计时
+  - 新记录检测：关卡完成时自动检查并保存速度跑记录
+- **深渊维度折叠 shader 生成器 (T072)**：使用 algorithmic-art 创建了"Dimensional Fold"交互式维度折叠生成器：
+  - 1200x800 横向画布，动态折叠网格系统
+  - 折叠网格：多频正弦波叠加驱动网格节点位移，噪声场引导折叠方向
+  - 维度碎片：六边形/三角形/菱形碎片沿折叠轴漂浮，噪声场驱动运动
+  - 折叠脉冲：从中心扩散的椭圆冲击波，临时加速碎片旋转
+  - 时间裂缝：脉冲触发的分支断裂线，虚空橙发光
+  - 侵蚀叠加：深度驱动的扫描线+碎片溶解效果
+  - 可调参数：网格密度/折叠强度/共振频率/碎片数量/侵蚀深度/脉冲强度
+  - 颜色选择器：深渊底色/荧光青/虚空橙，遵循 STYLE_GUIDE.md
+  - 算法哲学文档：dimensional-fold-philosophy.md
+
+### 使用的 Skills
+- algorithmic-art: 深渊时间沙漏生成器（Abyssal Hourglass）+ 深渊维度折叠生成器（Dimensional Fold）
+- frontend-skill: 速度跑计时器 HUD 设计（实时计时+最佳记录+侵蚀效果）
+
+### 新增文件
+- assets/shaders/abyssal-hourglass-philosophy.md: 深渊时间沙漏算法哲学
+- assets/shaders/abyssal-hourglass.html: 深渊时间沙漏交互式生成器
+- assets/shaders/dimensional-fold-philosophy.md: 深渊维度折叠算法哲学
+- assets/shaders/dimensional-fold.html: 深渊维度折叠交互式生成器
+
+### 修改文件
+- src/scenes/game-scene.js: 速度跑计时器系统（计时+HUD渲染+最佳记录+关卡完成展示）
+
+### 异常记录
+- 无异常，所有功能构建通过
+
 ## [2026-06-01 14:00 迭代20] - 深渊交互深化与关卡修复 | 所用 skills: frontend-skill, algorithmic-art | 完成的任务 ID: T066, T067, T068, T069 | 备注: 自检通过，构建成功
 
 ### 完成内容
