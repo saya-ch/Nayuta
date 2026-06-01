@@ -119,6 +119,21 @@ export class GameScene extends Scene {
     this.speedrunTime = 0;
     this.speedrunVisible = false;
     this.speedrunBestTimes = {};
+    this._lightCanvas = null;
+    this._lightCtx = null;
+    this._lightW = 0;
+    this._lightH = 0;
+  }
+
+  _ensureLightCanvas(w, h) {
+    if (!this._lightCanvas || this._lightW !== w || this._lightH !== h) {
+      this._lightCanvas = document.createElement('canvas');
+      this._lightCanvas.width = Math.ceil(w);
+      this._lightCanvas.height = Math.ceil(h);
+      this._lightCtx = this._lightCanvas.getContext('2d');
+      this._lightW = w;
+      this._lightH = h;
+    }
   }
 
   init() {
@@ -1217,6 +1232,8 @@ export class GameScene extends Scene {
     this._renderInteractHint(ctx, w, h);
     this.hintSystem.render(ctx);
 
+    this._renderDynamicLighting(ctx, w, h);
+
     ctx.restore();
 
     this._renderHUD(ctx, w, h, level);
@@ -1266,6 +1283,117 @@ export class GameScene extends Scene {
       this._renderTouchControls(ctx, w, h);
     }
 
+    ctx.restore();
+  }
+
+  _renderDynamicLighting(ctx, w, h) {
+    const depthDarkness = [0.25, 0.4, 0.55, 0.7][this.depth] || 0.25;
+    if (depthDarkness <= 0) return;
+
+    this._ensureLightCanvas(w, h);
+    const lc = this._lightCtx;
+
+    lc.clearRect(0, 0, w, h);
+    lc.fillStyle = `rgba(5, 3, 15, ${depthDarkness})`;
+    lc.fillRect(0, 0, w, h);
+
+    lc.globalCompositeOperation = 'destination-out';
+
+    const camX = this.camera.getOffsetX();
+    const camY = this.camera.getOffsetY();
+
+    const playerScreenX = this.player.x + camX;
+    const playerScreenY = this.player.y + this.idleFloatY + camY;
+    const playerRadius = [180, 150, 120, 90][this.depth] || 180;
+    const playerPulse = 1 + 0.08 * Math.sin(this.time * 0.004);
+    const pr = playerRadius * playerPulse;
+
+    const playerGrad = lc.createRadialGradient(
+      playerScreenX, playerScreenY - 16, 0,
+      playerScreenX, playerScreenY - 16, pr
+    );
+    playerGrad.addColorStop(0, 'rgba(0, 0, 0, 1)');
+    playerGrad.addColorStop(0.3, 'rgba(0, 0, 0, 0.85)');
+    playerGrad.addColorStop(0.6, 'rgba(0, 0, 0, 0.4)');
+    playerGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    lc.fillStyle = playerGrad;
+    lc.beginPath();
+    lc.arc(playerScreenX, playerScreenY - 16, pr, 0, Math.PI * 2);
+    lc.fill();
+
+    for (const anchor of this.anchors) {
+      if (anchor.collected) continue;
+      const ax = anchor.x + camX;
+      const ay = anchor.y + camY;
+      const anchorPulse = 1 + 0.3 * Math.sin(anchor.pulse);
+      const ar = (60 + anchor.size * 5) * anchorPulse;
+
+      const anchorGrad = lc.createRadialGradient(ax, ay, 0, ax, ay, ar);
+      anchorGrad.addColorStop(0, 'rgba(0, 0, 0, 0.9)');
+      anchorGrad.addColorStop(0.4, 'rgba(0, 0, 0, 0.5)');
+      anchorGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      lc.fillStyle = anchorGrad;
+      lc.beginPath();
+      lc.arc(ax, ay, ar, 0, Math.PI * 2);
+      lc.fill();
+    }
+
+    for (const dec of this.decorations) {
+      if (dec.type !== 'glowOrb') continue;
+      const dx = dec.x + camX;
+      const floatY = Math.sin(this.time * 0.001 + dec.x * 0.01) * 5;
+      const dy = dec.y + floatY + camY;
+      const pulse = Math.sin(this.time * 0.003 + dec.x * 0.02) * 0.4 + 0.6;
+      const dr = (dec.size * 6 + 20) * pulse;
+
+      const orbGrad = lc.createRadialGradient(dx, dy, 0, dx, dy, dr);
+      orbGrad.addColorStop(0, 'rgba(0, 0, 0, 0.7)');
+      orbGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      lc.fillStyle = orbGrad;
+      lc.beginPath();
+      lc.arc(dx, dy, dr, 0, Math.PI * 2);
+      lc.fill();
+    }
+
+    for (const portal of this.portals) {
+      const px = portal.x + camX;
+      const py = portal.y + camY;
+      const portalPulse = 1 + 0.15 * Math.sin(this.time * 0.005);
+      const portalR = 70 * portalPulse;
+
+      const portalGrad = lc.createRadialGradient(px, py, 0, px, py, portalR);
+      portalGrad.addColorStop(0, 'rgba(0, 0, 0, 0.8)');
+      portalGrad.addColorStop(0.5, 'rgba(0, 0, 0, 0.4)');
+      portalGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      lc.fillStyle = portalGrad;
+      lc.beginPath();
+      lc.arc(px, py, portalR, 0, Math.PI * 2);
+      lc.fill();
+    }
+
+    for (const pe of this.puzzleManager.elements) {
+      if (pe.type === 'lightSource' && pe.active) {
+        const lx = pe.x + camX;
+        const ly = pe.y + camY;
+        const lr = 100;
+
+        const lsGrad = lc.createRadialGradient(lx, ly, 0, lx, ly, lr);
+        lsGrad.addColorStop(0, 'rgba(0, 0, 0, 0.85)');
+        lsGrad.addColorStop(0.5, 'rgba(0, 0, 0, 0.4)');
+        lsGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        lc.fillStyle = lsGrad;
+        lc.beginPath();
+        lc.arc(lx, ly, lr, 0, Math.PI * 2);
+        lc.fill();
+      }
+    }
+
+    lc.globalCompositeOperation = 'source-over';
+
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const dpr = window.devicePixelRatio || 1;
+    ctx.drawImage(this._lightCanvas, 0, 0, w * dpr, h * dpr);
     ctx.restore();
   }
 
