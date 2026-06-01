@@ -14,6 +14,15 @@ export class GameScene extends Scene {
     this.sceneManager = sceneManager;
     this.audio = audioSystem;
     this.player = { x: 100, y: 300, vx: 0, vy: 0, onGround: false, facing: 1 };
+    this.coyoteTimer = 0;
+    this.coyoteDuration = 120;
+    this.jumpBufferTimer = 0;
+    this.jumpBufferDuration = 150;
+    this.isJumping = false;
+    this.jumpCutMultiplier = 0.45;
+    this.wasOnGround = false;
+    this.landingParticles = [];
+    this.landingImpactTimer = 0;
     this.anchors = [];
     this.anchorCount = 0;
     this.depth = 0;
@@ -208,6 +217,12 @@ export class GameScene extends Scene {
     this.glitchBurst = false;
     this.glitchBurstTimer = 0;
     this.realityCracks = [];
+    this.coyoteTimer = 0;
+    this.jumpBufferTimer = 0;
+    this.isJumping = false;
+    this.wasOnGround = false;
+    this.landingParticles = [];
+    this.landingImpactTimer = 0;
     this._initScanLines();
     this._initRealityCracks();
   }
@@ -353,6 +368,28 @@ export class GameScene extends Scene {
     const gravity = 800;
     const jumpForce = -400;
 
+    this.wasOnGround = this.player.onGround;
+
+    if (this.player.onGround) {
+      this.coyoteTimer = this.coyoteDuration;
+    } else {
+      this.coyoteTimer = Math.max(0, this.coyoteTimer - dt);
+    }
+
+    const jumpPressed = this.input.justPressed('ArrowUp') || this.input.justPressed('KeyW') || this.input.justPressed('Space');
+    if (jumpPressed) {
+      this.jumpBufferTimer = this.jumpBufferDuration;
+    } else {
+      this.jumpBufferTimer = Math.max(0, this.jumpBufferTimer - dt);
+    }
+
+    const jumpReleased = this.input.justReleased('ArrowUp') || this.input.justReleased('KeyW') || this.input.justReleased('Space');
+
+    if (this.isJumping && jumpReleased && this.player.vy < 0) {
+      this.player.vy *= this.jumpCutMultiplier;
+      this.isJumping = false;
+    }
+
     if (this.input.isMobile() && this.input.getJoystickState().active) {
       const dir = this.input.getJoystickDirection();
       if (Math.abs(dir.x) > 0.2) {
@@ -371,9 +408,12 @@ export class GameScene extends Scene {
       this.player.vx *= 0.85;
     }
 
-    if ((this.input.justPressed('ArrowUp') || this.input.justPressed('KeyW') || this.input.justPressed('Space')) && this.player.onGround) {
+    if (this.jumpBufferTimer > 0 && this.coyoteTimer > 0 && !this.isJumping) {
       this.player.vy = jumpForce;
       this.player.onGround = false;
+      this.isJumping = true;
+      this.coyoteTimer = 0;
+      this.jumpBufferTimer = 0;
       if (this.audio) this.audio.playSFX('jump');
     }
 
@@ -415,6 +455,16 @@ export class GameScene extends Scene {
         }
       }
     }
+
+    if (this.player.onGround && !this.wasOnGround && this.isJumping) {
+      this.isJumping = false;
+      this._spawnLandingParticles();
+    }
+    if (this.player.onGround && this.player.vy >= 0) {
+      this.isJumping = false;
+    }
+
+    this._updateLandingParticles(dt);
 
     this._updatePortals(dt, playerW, playerH);
 
@@ -821,6 +871,7 @@ export class GameScene extends Scene {
     this.puzzleManager.render(ctx);
     this._renderParticles(ctx, w, h, level);
     this._renderPlayerTrail(ctx);
+    this._renderLandingParticles(ctx);
     this._renderPlayer(ctx, w, h);
     this._renderInteractHint(ctx, w, h);
     this.hintSystem.render(ctx);
@@ -986,6 +1037,71 @@ export class GameScene extends Scene {
       ctx.beginPath();
       ctx.ellipse(0, -size * 1.5, size * 0.8, size * 1.2, 0, 0, Math.PI * 2);
       ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  _spawnLandingParticles() {
+    const count = 12;
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI + (Math.random() - 0.5) * 0.5;
+      const speed = 1 + Math.random() * 3;
+      this.landingParticles.push({
+        x: this.player.x + (Math.random() - 0.5) * 20,
+        y: this.player.y,
+        vx: Math.cos(angle) * speed * (Math.random() > 0.5 ? 1 : -1),
+        vy: -Math.random() * 2 - 0.5,
+        size: Math.random() * 3 + 1,
+        alpha: 0.7 + Math.random() * 0.3,
+        life: 400 + Math.random() * 200,
+        maxLife: 600,
+        isCyan: Math.random() > 0.3,
+      });
+    }
+    this.landingImpactTimer = 200;
+  }
+
+  _updateLandingParticles(dt) {
+    for (let i = this.landingParticles.length - 1; i >= 0; i--) {
+      const p = this.landingParticles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.08;
+      p.life -= dt;
+      p.alpha = Math.max(0, (p.life / p.maxLife) * 0.8);
+      p.size *= 0.98;
+      if (p.life <= 0) {
+        this.landingParticles.splice(i, 1);
+      }
+    }
+    if (this.landingImpactTimer > 0) {
+      this.landingImpactTimer -= dt;
+    }
+  }
+
+  _renderLandingParticles(ctx) {
+    for (const p of this.landingParticles) {
+      if (p.alpha <= 0) continue;
+      ctx.save();
+      ctx.globalAlpha = p.alpha;
+      ctx.fillStyle = p.isCyan ? COLORS.FLUORESCENT_CYAN : COLORS.MOONLIGHT_WHITE;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    if (this.landingImpactTimer > 0) {
+      const progress = 1 - this.landingImpactTimer / 200;
+      const radius = progress * 40;
+      const alpha = (1 - progress) * 0.15;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = COLORS.FLUORESCENT_CYAN;
+      ctx.lineWidth = 1.5 * (1 - progress);
+      ctx.beginPath();
+      ctx.arc(this.player.x, this.player.y, radius, 0, Math.PI * 2);
+      ctx.stroke();
       ctx.restore();
     }
   }

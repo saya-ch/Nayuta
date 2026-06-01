@@ -28,6 +28,10 @@ export class EndingScene extends Scene {
     this.showCredits = false;
     this.creditsAlpha = 0;
     this.creditsScroll = 0;
+    this.statsAlpha = 0;
+    this.statsLineAlphas = [];
+    this.statsProgressBars = [];
+    this.statsData = null;
   }
 
   onEnter() {
@@ -135,6 +139,9 @@ export class EndingScene extends Scene {
       case 'credits':
         this._updateCredits(dt);
         break;
+      case 'stats':
+        this._updateStats(dt);
+        break;
     }
 
     for (const p of this.particles) {
@@ -241,7 +248,9 @@ export class EndingScene extends Scene {
 
     if (this.input.justPressed('Enter') || this.input.justPressed('Space') || this.input.justPressed('Escape')) {
       if (this.creditsAlpha > 0.5) {
-        this.sceneManager.switchTo('menu');
+        this.phase = 'stats';
+        this.phaseTimer = 0;
+        this._computeStats();
       }
     }
   }
@@ -274,6 +283,9 @@ export class EndingScene extends Scene {
         break;
       case 'credits':
         this._renderCredits(ctx, w, h);
+        break;
+      case 'stats':
+        this._renderStats(ctx, w, h);
         break;
     }
 
@@ -701,5 +713,219 @@ export class EndingScene extends Scene {
     if (line) {
       ctx.fillText(line, x, currentY);
     }
+  }
+
+  _computeStats() {
+    const data = saveSystem.getData();
+    const totalAnchors = 5 + 5 + 4 + 3;
+    let collectedAnchors = 0;
+    for (let d = 0; d < 4; d++) {
+      const lp = data.levelProgress && data.levelProgress[d];
+      if (lp) {
+        collectedAnchors += lp.anchorsCollected || 0;
+      }
+    }
+
+    this.statsData = {
+      anchorsCollected: collectedAnchors,
+      anchorsTotal: totalAnchors,
+      deathCount: saveSystem.getDeathCount(),
+      playTime: saveSystem.formatPlayTime(data.playTime || 0),
+      unlockedDepth: (data.unlockedDepth || 0) + 1,
+      endingsSeen: data.endingsSeen || [],
+      completionPercent: Math.round((collectedAnchors / totalAnchors) * 100),
+    };
+
+    this.statsLineAlphas = new Array(8).fill(0);
+    this.statsProgressBars = new Array(5).fill(0);
+  }
+
+  _updateStats(dt) {
+    this.statsAlpha = Math.min(1, this.statsAlpha + dt * 0.001);
+
+    for (let i = 0; i < this.statsLineAlphas.length; i++) {
+      const delay = i * 300;
+      if (this.phaseTimer > delay) {
+        this.statsLineAlphas[i] = Math.min(1, this.statsLineAlphas[i] + dt * 0.003);
+      }
+    }
+
+    for (let i = 0; i < this.statsProgressBars.length; i++) {
+      const delay = 1500 + i * 200;
+      if (this.phaseTimer > delay) {
+        this.statsProgressBars[i] = Math.min(1, this.statsProgressBars[i] + dt * 0.002);
+      }
+    }
+
+    if (this.input.justPressed('Enter') || this.input.justPressed('Space') || this.input.justPressed('Escape')) {
+      if (this.statsAlpha > 0.5) {
+        this.sceneManager.switchTo('menu');
+      }
+    }
+  }
+
+  _renderStats(ctx, w, h) {
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, w, h);
+
+    this._renderParticles(ctx, w, h);
+
+    if (!this.statsData) return;
+
+    const cx = w / 2;
+    const startY = h * 0.12;
+    const sd = this.statsData;
+
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    const lineAlpha0 = this.statsLineAlphas[0] || 0;
+    if (lineAlpha0 > 0) {
+      ctx.globalAlpha = lineAlpha0;
+      const breathCycle = Math.sin(this.time * 0.002) * 0.15 + 0.85;
+      ctx.font = '600 36px "Segoe UI", system-ui, sans-serif';
+      ctx.fillStyle = COLORS.MOONLIGHT_WHITE;
+      ctx.shadowColor = COLORS.FLUORESCENT_CYAN;
+      ctx.shadowBlur = 25 * breathCycle;
+      ctx.fillText('深渊记录', cx, startY);
+      ctx.shadowBlur = 0;
+
+      const lineW = 120 * Math.min(1, this.phaseTimer / 800);
+      ctx.strokeStyle = COLORS.FLUORESCENT_CYAN;
+      ctx.lineWidth = 1;
+      ctx.globalAlpha = lineAlpha0 * 0.4;
+      ctx.beginPath();
+      ctx.moveTo(cx - lineW / 2, startY + 28);
+      ctx.lineTo(cx + lineW / 2, startY + 28);
+      ctx.stroke();
+    }
+
+    const statsY = startY + 70;
+    const statSpacing = 52;
+    const leftX = cx - 180;
+    const rightX = cx + 180;
+
+    const statLines = [
+      { label: '记忆之锚', value: `${sd.anchorsCollected} / ${sd.anchorsTotal}`, lineIndex: 1 },
+      { label: '深渊吞噬', value: `${sd.deathCount} 次`, lineIndex: 2 },
+      { label: '探索时长', value: sd.playTime, lineIndex: 3 },
+      { label: '抵达深度', value: `${sd.unlockedDepth} / 4`, lineIndex: 4 },
+    ];
+
+    for (let i = 0; i < statLines.length; i++) {
+      const stat = statLines[i];
+      const alpha = this.statsLineAlphas[stat.lineIndex] || 0;
+      if (alpha <= 0) continue;
+
+      const y = statsY + i * statSpacing;
+
+      ctx.globalAlpha = alpha;
+      ctx.font = '300 15px "Segoe UI", system-ui, sans-serif';
+      ctx.fillStyle = COLORS.STARDUST_GRAY;
+      ctx.textAlign = 'left';
+      ctx.fillText(stat.label, leftX, y);
+
+      ctx.textAlign = 'right';
+      ctx.font = '500 20px "Segoe UI", system-ui, sans-serif';
+      ctx.fillStyle = COLORS.FLUORESCENT_CYAN;
+      ctx.shadowColor = COLORS.FLUORESCENT_CYAN;
+      ctx.shadowBlur = 8;
+      ctx.fillText(stat.value, rightX, y);
+      ctx.shadowBlur = 0;
+    }
+
+    const progressY = statsY + statLines.length * statSpacing + 20;
+    const progressAlpha = this.statsLineAlphas[5] || 0;
+    if (progressAlpha > 0) {
+      ctx.globalAlpha = progressAlpha;
+      ctx.textAlign = 'center';
+      ctx.font = '300 13px "Segoe UI", system-ui, sans-serif';
+      ctx.fillStyle = COLORS.STARDUST_GRAY;
+      ctx.fillText('收集进度', cx, progressY);
+
+      const barW = 300;
+      const barH = 6;
+      const barX = cx - barW / 2;
+      const barY = progressY + 18;
+
+      ctx.fillStyle = 'rgba(107, 107, 141, 0.2)';
+      ctx.fillRect(barX, barY, barW, barH);
+
+      const fillProgress = this.statsProgressBars[0] || 0;
+      const fillW = barW * (sd.completionPercent / 100) * fillProgress;
+      const barGrad = ctx.createLinearGradient(barX, barY, barX + fillW, barY);
+      barGrad.addColorStop(0, COLORS.FLUORESCENT_CYAN);
+      barGrad.addColorStop(1, 'rgba(0, 136, 255, 0.8)');
+      ctx.fillStyle = barGrad;
+      ctx.fillRect(barX, barY, fillW, barH);
+
+      ctx.font = '500 16px "Segoe UI", system-ui, sans-serif';
+      ctx.fillStyle = COLORS.FLUORESCENT_CYAN;
+      const displayPercent = Math.round(sd.completionPercent * fillProgress);
+      ctx.fillText(`${displayPercent}%`, cx, barY + 28);
+    }
+
+    const endingsY = progressY + 80;
+    const endingsAlpha = this.statsLineAlphas[6] || 0;
+    if (endingsAlpha > 0) {
+      ctx.globalAlpha = endingsAlpha;
+      ctx.textAlign = 'center';
+      ctx.font = '300 13px "Segoe UI", system-ui, sans-serif';
+      ctx.fillStyle = COLORS.STARDUST_GRAY;
+      ctx.fillText('结局记录', cx, endingsY);
+
+      const endingSpacing = 160;
+      const endingStartX = cx - endingSpacing / 2;
+
+      const endings = [
+        { id: 'void', name: '回归虚无', color: COLORS.FLUORESCENT_CYAN },
+        { id: 'abyss', name: '凝视深渊', color: COLORS.VOID_ORANGE },
+      ];
+
+      for (let i = 0; i < endings.length; i++) {
+        const ex = endingStartX + i * endingSpacing;
+        const ey = endingsY + 35;
+        const seen = sd.endingsSeen.includes(endings[i].id);
+        const barProgress = this.statsProgressBars[i + 1] || 0;
+
+        if (seen) {
+          const pulse = Math.sin(this.time * 0.003 + i * 2) * 0.15 + 0.85;
+          ctx.globalAlpha = endingsAlpha * barProgress;
+
+          ctx.strokeStyle = endings[i].color;
+          ctx.lineWidth = 1;
+          ctx.strokeRect(ex - 55, ey - 18, 110, 36);
+
+          ctx.font = '500 15px "Segoe UI", system-ui, sans-serif';
+          ctx.fillStyle = endings[i].color;
+          ctx.shadowColor = endings[i].color;
+          ctx.shadowBlur = 10 * pulse;
+          ctx.fillText(endings[i].name, ex, ey);
+          ctx.shadowBlur = 0;
+        } else {
+          ctx.globalAlpha = endingsAlpha * 0.3;
+          ctx.strokeStyle = 'rgba(107, 107, 141, 0.3)';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(ex - 55, ey - 18, 110, 36);
+
+          ctx.font = '300 14px "Segoe UI", system-ui, sans-serif';
+          ctx.fillStyle = COLORS.STARDUST_GRAY;
+          ctx.fillText('???', ex, ey);
+        }
+      }
+    }
+
+    const hintAlpha = this.statsLineAlphas[7] || 0;
+    if (hintAlpha > 0) {
+      ctx.globalAlpha = hintAlpha * (0.3 + 0.2 * Math.sin(this.time * 0.002));
+      ctx.textAlign = 'center';
+      ctx.font = '300 12px "Segoe UI", system-ui, sans-serif';
+      ctx.fillStyle = COLORS.STARDUST_GRAY;
+      ctx.fillText('按任意键返回主菜单', cx, h - 40);
+    }
+
+    ctx.globalAlpha = 1;
+    ctx.restore();
   }
 }
