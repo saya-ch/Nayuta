@@ -387,8 +387,8 @@ export class MenuScene extends Scene {
     } else {
       switch (this.selectedIndex) {
         case 0:
-          this.sceneManager.preloadScene('game');
-          this.sceneManager.switchTo('game');
+          this.sceneManager.preloadScene('prologue');
+          this.sceneManager.switchTo('prologue');
           break;
         case 1:
           this.sceneManager.switchTo('about');

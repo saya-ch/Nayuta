@@ -164,6 +164,9 @@ export class AudioSystem {
 
   _startBGMForDepth(depthIndex, fadeInDuration = 2) {
     switch (depthIndex) {
+      case -2:
+        this._playPrologueBGM(fadeInDuration);
+        break;
       case -1:
         this._playMenuBGM(fadeInDuration);
         break;
@@ -233,6 +236,13 @@ export class AudioSystem {
     this._createDrone(82.5, 5, 0.08, 'sine', fadeIn);
     this._createDrone(110, -3, 0.05, 'triangle', fadeIn);
     this._createFilteredNoise(200, 1, 0.03, fadeIn);
+  }
+
+  _playPrologueBGM(fadeIn = 2) {
+    this._createDrone(41, 0, 0.08, 'sine', fadeIn);
+    this._createDrone(55, 3, 0.05, 'sine', fadeIn);
+    this._createDrone(82, -2, 0.03, 'triangle', fadeIn);
+    this._createFilteredNoise(150, 0.8, 0.04, fadeIn);
   }
 
   _playDepth1BGM(fadeIn = 2) {

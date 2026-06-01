@@ -25,6 +25,14 @@ export class GameScene extends Scene {
     this.wasOnGround = false;
     this.landingParticles = [];
     this.landingImpactTimer = 0;
+    this.playerAnimState = 'idle';
+    this.playerAnimTime = 0;
+    this.walkCycle = 0;
+    this.breathCycle = 0;
+    this.capeWave = [0, 0, 0, 0, 0];
+    this.idleFloatY = 0;
+    this.walkDustTimer = 0;
+    this.walkDustParticles = [];
     this.anchors = [];
     this.anchorCount = 0;
     this.depth = 0;
@@ -285,6 +293,14 @@ export class GameScene extends Scene {
     this.wasOnGround = false;
     this.landingParticles = [];
     this.landingImpactTimer = 0;
+    this.playerAnimState = 'idle';
+    this.playerAnimTime = 0;
+    this.walkCycle = 0;
+    this.breathCycle = 0;
+    this.capeWave = [0, 0, 0, 0, 0];
+    this.idleFloatY = 0;
+    this.walkDustTimer = 0;
+    this.walkDustParticles = [];
     this.echoWaves = [];
     this.echoParticles = [];
     this._initScanLines();
@@ -386,6 +402,73 @@ export class GameScene extends Scene {
 
   update(dt) {
     this.time += dt;
+    this.playerAnimTime += dt;
+    this.breathCycle += dt * 0.003;
+
+    if (this.player.onGround) {
+      if (Math.abs(this.player.vx) > 10) {
+        this.playerAnimState = 'walk';
+        this.walkCycle += dt * 0.012;
+      } else {
+        this.playerAnimState = 'idle';
+        this.walkCycle *= 0.9;
+      }
+      this.idleFloatY = this.playerAnimState === 'idle' ? Math.sin(this.breathCycle) * 3 : 0;
+    } else {
+      if (this.player.vy < 0) {
+        this.playerAnimState = 'jump';
+      } else {
+        this.playerAnimState = 'fall';
+      }
+      this.walkCycle *= 0.95;
+      this.idleFloatY *= 0.9;
+    }
+
+    const capeForce = -this.player.vx * 0.003;
+    const capeGravity = 0.02;
+    const capeDamping = 0.92;
+    for (let i = 0; i < this.capeWave.length; i++) {
+      const prev = i === 0 ? 0 : this.capeWave[i - 1];
+      this.capeWave[i] = this.capeWave[i] * capeDamping + (prev * 0.3 + capeForce + capeGravity) * 0.5;
+      if (this.playerAnimState === 'fall') {
+        this.capeWave[i] -= 0.15;
+      } else if (this.playerAnimState === 'jump') {
+        this.capeWave[i] += 0.08;
+      } else if (this.playerAnimState === 'walk') {
+        this.capeWave[i] += Math.sin(this.walkCycle + i * 0.5) * 0.05;
+      } else {
+        this.capeWave[i] += Math.sin(this.breathCycle + i * 0.3) * 0.02;
+      }
+    }
+
+    if (this.playerAnimState === 'walk') {
+      this.walkDustTimer += dt;
+      if (this.walkDustTimer >= 133) {
+        this.walkDustTimer = 0;
+        this.walkDustParticles.push({
+          x: this.player.x + (Math.random() - 0.5) * 8,
+          y: this.player.y,
+          vx: (Math.random() - 0.5) * 0.5,
+          vy: -Math.random() * 0.8 - 0.2,
+          size: Math.random() * 2 + 1,
+          alpha: 0.6 + Math.random() * 0.3,
+          life: 300 + Math.random() * 200,
+          maxLife: 500,
+        });
+      }
+    }
+    for (let i = this.walkDustParticles.length - 1; i >= 0; i--) {
+      const dp = this.walkDustParticles[i];
+      dp.x += dp.vx;
+      dp.y += dp.vy;
+      dp.life -= dt;
+      dp.alpha = Math.max(0, (dp.life / dp.maxLife) * 0.7);
+      dp.size *= 0.98;
+      if (dp.life <= 0) {
+        this.walkDustParticles.splice(i, 1);
+      }
+    }
+
     this.waterReflectionTime += dt / 1000;
     const dtSec = dt / 1000;
 
@@ -1729,15 +1812,116 @@ export class GameScene extends Scene {
   _renderPlayer(ctx) {
     const p = this.player;
     const size = 16;
+    const state = this.playerAnimState;
 
     ctx.save();
-    ctx.translate(p.x, p.y);
+    ctx.translate(p.x, p.y + this.idleFloatY);
     ctx.scale(p.facing, 1);
+
+    const bodyTilt = state === 'walk' ? Math.sin(this.walkCycle) * 0.03 : 0;
+    const stretchY = state === 'jump' ? 1.1 : (state === 'fall' ? 0.95 : 1);
+    const stretchX = state === 'jump' ? 0.92 : (state === 'fall' ? 1.05 : 1);
+
+    const glow = ctx.createRadialGradient(0, -size * 1.5, 0, 0, -size * 1.5, size * 3);
+    glow.addColorStop(0, 'rgba(0, 255, 212, 0.08)');
+    glow.addColorStop(1, 'rgba(0, 255, 212, 0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(-size * 3, -size * 5, size * 6, size * 6);
+
+    ctx.save();
+    ctx.rotate(bodyTilt);
+    ctx.scale(stretchX, stretchY);
+
+    const capeTopY = -size * 0.8;
+    const capeBotY = -size * 2.2;
+    const capeLeftX = -size * 0.7;
+    const capeRightX = size * 0.7;
+    const capePoints = [];
+    for (let i = 0; i < 5; i++) {
+      const t = i / 4;
+      const x = capeLeftX + (capeRightX - capeLeftX) * t;
+      const yBase = capeBotY + (capeTopY - capeBotY) * 0.5;
+      const wave = this.capeWave[i] || 0;
+      capePoints.push({ x: x, y: yBase + wave * 8 });
+    }
+
+    ctx.fillStyle = '#2D1B69';
+    ctx.beginPath();
+    ctx.moveTo(capeLeftX, capeTopY);
+    for (let i = 0; i < capePoints.length; i++) {
+      if (i === 0) {
+        ctx.lineTo(capePoints[i].x, capePoints[i].y);
+      } else {
+        const prev = capePoints[i - 1];
+        const curr = capePoints[i];
+        const cpx = (prev.x + curr.x) / 2;
+        const cpy = (prev.y + curr.y) / 2;
+        ctx.quadraticCurveTo(prev.x, prev.y, cpx, cpy);
+      }
+    }
+    ctx.lineTo(capeRightX, capeTopY);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(0, 255, 212, 0.3)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i < capePoints.length; i++) {
+      if (i === 0) {
+        ctx.moveTo(capePoints[i].x, capePoints[i].y);
+      } else {
+        const prev = capePoints[i - 1];
+        const curr = capePoints[i];
+        const cpx = (prev.x + curr.x) / 2;
+        const cpy = (prev.y + curr.y) / 2;
+        ctx.quadraticCurveTo(prev.x, prev.y, cpx, cpy);
+      }
+    }
+    ctx.stroke();
 
     ctx.fillStyle = '#2D1B69';
     ctx.beginPath();
     ctx.ellipse(0, -size * 1.5, size * 0.8, size * 1.2, 0, 0, Math.PI * 2);
     ctx.fill();
+
+    if (state === 'walk') {
+      const legSwing = Math.sin(this.walkCycle) * 6;
+      ctx.strokeStyle = '#2D1B69';
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-3, -size * 0.3);
+      ctx.lineTo(-3 + legSwing, size * 0.2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(3, -size * 0.3);
+      ctx.lineTo(3 - legSwing, size * 0.2);
+      ctx.stroke();
+    } else if (state === 'jump') {
+      ctx.strokeStyle = '#2D1B69';
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-3, -size * 0.3);
+      ctx.lineTo(-5, -size * 0.1);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(3, -size * 0.3);
+      ctx.lineTo(5, -size * 0.1);
+      ctx.stroke();
+    } else if (state === 'fall') {
+      ctx.strokeStyle = '#2D1B69';
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-3, -size * 0.3);
+      ctx.lineTo(-4, size * 0.4);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(3, -size * 0.3);
+      ctx.lineTo(4, size * 0.4);
+      ctx.stroke();
+    }
 
     ctx.fillStyle = COLORS.MOONLIGHT_WHITE;
     ctx.beginPath();
@@ -1745,14 +1929,17 @@ export class GameScene extends Scene {
     ctx.fill();
 
     const eyeColor = this.depth >= 3 ? COLORS.VOID_ORANGE : COLORS.FLUORESCENT_CYAN;
+    const eyePulse = state === 'idle' ? 0.7 + 0.3 * Math.sin(this.breathCycle * 2) : 1;
     ctx.fillStyle = eyeColor;
+    ctx.globalAlpha *= eyePulse;
     ctx.beginPath();
     ctx.arc(3, -size * 2.6, 2, 0, Math.PI * 2);
     ctx.fill();
+    ctx.globalAlpha = ctx.globalAlpha / (eyePulse || 1);
 
     if (this.depth >= 2) {
       const flicker = Math.sin(this.time * 0.03) > 0.3 ? 1 : 0.3;
-      ctx.globalAlpha = flicker;
+      ctx.globalAlpha *= flicker;
     }
 
     ctx.fillStyle = '#1A1035';
@@ -1773,6 +1960,17 @@ export class GameScene extends Scene {
 
     ctx.globalAlpha = 1;
     ctx.restore();
+    ctx.restore();
+
+    for (const dp of this.walkDustParticles) {
+      if (dp.alpha <= 0) continue;
+      ctx.globalAlpha = dp.alpha;
+      ctx.fillStyle = COLORS.FLUORESCENT_CYAN;
+      ctx.beginPath();
+      ctx.arc(dp.x, dp.y, dp.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
   }
 
   _renderInteractHint(ctx, w, h) {
