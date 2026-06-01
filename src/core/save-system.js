@@ -20,6 +20,7 @@ class SaveSystem {
       endingsSeen: [],
       playTime: 0,
       deathCount: 0,
+      shownHints: [],
       lastSaved: null,
     };
   }
@@ -45,6 +46,9 @@ class SaveSystem {
         }
         if (!this._data.endingsSeen) {
           this._data.endingsSeen = [];
+        }
+        if (!this._data.shownHints) {
+          this._data.shownHints = [];
         }
       } else {
         this._data = this._getDefault();
@@ -112,6 +116,12 @@ class SaveSystem {
   getDeathCount() {
     const data = this.getData();
     return data.deathCount || 0;
+  }
+
+  saveShownHints(hints) {
+    const data = this.getData();
+    data.shownHints = hints;
+    this.save(data);
   }
 
   hasSave() {

@@ -126,6 +126,14 @@ export class LevelData {
         { type: 'rune', x: 500, y: 498, symbol: 1 },
         { type: 'rune', x: 900, y: 498, symbol: 2 },
       ],
+      movingPlatforms: [
+        { x: 450, y: 440, w: 80, h: 14, moveType: 'horizontal', range: 120, speed: 0.8 },
+        { x: 750, y: 360, w: 70, h: 14, moveType: 'vertical', range: 60, speed: 0.6 },
+      ],
+      portals: [
+        { x: 120, y: 470, id: 'l1_p1', pairedId: 'l1_p2' },
+        { x: 1050, y: 470, id: 'l1_p2', pairedId: 'l1_p1' },
+      ],
       completionText: '浅层记忆之门已开启',
       completionSubtext: '更深处的记忆在呼唤...',
     };
@@ -221,6 +229,15 @@ export class LevelData {
         { type: 'rune', x: 150, y: 498, symbol: 0 },
         { type: 'rune', x: 560, y: 498, symbol: 1 },
         { type: 'rune', x: 1020, y: 498, symbol: 2 },
+      ],
+      movingPlatforms: [
+        { x: 350, y: 440, w: 80, h: 14, moveType: 'horizontal', range: 100, speed: 0.7 },
+        { x: 700, y: 380, w: 70, h: 14, moveType: 'vertical', range: 80, speed: 0.5 },
+        { x: 1000, y: 350, w: 80, h: 14, moveType: 'circular', range: 50, speed: 0.4 },
+      ],
+      portals: [
+        { x: 50, y: 470, id: 'l2_p1', pairedId: 'l2_p2' },
+        { x: 1150, y: 470, id: 'l2_p2', pairedId: 'l2_p1' },
       ],
       completionText: '中层记忆之门已开启',
       completionSubtext: '黑暗在逼近...',
@@ -321,6 +338,15 @@ export class LevelData {
         { type: 'rune', x: 450, y: 498, symbol: 1 },
         { type: 'rune', x: 800, y: 498, symbol: 2 },
       ],
+      movingPlatforms: [
+        { x: 300, y: 440, w: 70, h: 14, moveType: 'horizontal', range: 80, speed: 0.9 },
+        { x: 600, y: 370, w: 60, h: 14, moveType: 'vertical', range: 70, speed: 0.7 },
+        { x: 900, y: 400, w: 70, h: 14, moveType: 'horizontal', range: 100, speed: 1.0 },
+      ],
+      portals: [
+        { x: 40, y: 470, id: 'l3_p1', pairedId: 'l3_p2' },
+        { x: 1100, y: 470, id: 'l3_p2', pairedId: 'l3_p1' },
+      ],
       completionText: '深层记忆之门已开启',
       completionSubtext: '你已接近真相...',
     };
@@ -408,6 +434,15 @@ export class LevelData {
         { type: 'glowOrb', x: 800, y: 240, size: 4, color: 'red' },
         { type: 'rune', x: 100, y: 498, symbol: 0 },
         { type: 'rune', x: 600, y: 498, symbol: 1 },
+      ],
+      movingPlatforms: [
+        { x: 250, y: 440, w: 60, h: 14, moveType: 'horizontal', range: 60, speed: 1.1 },
+        { x: 550, y: 380, w: 50, h: 14, moveType: 'circular', range: 40, speed: 0.6 },
+        { x: 850, y: 420, w: 60, h: 14, moveType: 'vertical', range: 80, speed: 0.8 },
+      ],
+      portals: [
+        { x: 30, y: 470, id: 'l4_p1', pairedId: 'l4_p2' },
+        { x: 1050, y: 470, id: 'l4_p2', pairedId: 'l4_p1' },
       ],
       completionText: '你凝视了深渊',
       completionSubtext: '而深渊也凝视了你...',

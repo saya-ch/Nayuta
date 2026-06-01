@@ -3,6 +3,7 @@ import { COLORS, DEPTH_COLORS } from '../constants.js';
 import { PuzzleManager } from '../core/puzzle-manager.js';
 import { LevelData } from '../core/level-data.js';
 import { NarrativeSystem } from '../core/narrative-system.js';
+import { HintSystem } from '../core/hint-system.js';
 import { resourceManager } from '../core/resource-manager.js';
 import { saveSystem } from '../core/save-system.js';
 
@@ -22,6 +23,7 @@ export class GameScene extends Scene {
     this.erosionLevel = 0;
     this.puzzleManager = new PuzzleManager();
     this.narrativeSystem = new NarrativeSystem();
+    this.hintSystem = new HintSystem();
     this.platforms = [];
     this.decorations = [];
     this.currentLevel = null;
@@ -65,6 +67,11 @@ export class GameScene extends Scene {
     this.playerDissolveProgress = 0;
     this.respawnGlowRadius = 0;
     this.respawnFlashAlpha = 0;
+    this.movingPlatforms = [];
+    this.portals = [];
+    this.portalCooldown = 0;
+    this.portalParticles = [];
+    this.waterReflectionTime = 0;
   }
 
   init() {
@@ -78,6 +85,7 @@ export class GameScene extends Scene {
       this.depth = saveData.currentDepth;
     }
     this.deathCount = saveSystem.getDeathCount();
+    this.hintSystem.loadFromSave(saveData);
     this._loadLevel(this.depth);
     if (this.audio) {
       this.audio.playBGM(this.depth);
@@ -103,6 +111,38 @@ export class GameScene extends Scene {
     this.currentLevel = level;
     this.platforms = level.platforms;
     this.decorations = level.decorations || [];
+
+    this.movingPlatforms = [];
+    for (const mp of (level.movingPlatforms || [])) {
+      this.movingPlatforms.push({
+        originX: mp.x,
+        originY: mp.y,
+        x: mp.x,
+        y: mp.y,
+        w: mp.w,
+        h: mp.h,
+        moveType: mp.moveType,
+        range: mp.range,
+        speed: mp.speed,
+        phase: Math.random() * Math.PI * 2,
+        prevX: mp.x,
+        prevY: mp.y,
+      });
+    }
+
+    this.portals = [];
+    for (const p of (level.portals || [])) {
+      this.portals.push({
+        x: p.x,
+        y: p.y,
+        id: p.id,
+        pairedId: p.pairedId,
+        pulse: Math.random() * Math.PI * 2,
+        particles: [],
+      });
+    }
+    this.portalCooldown = 0;
+    this.portalParticles = [];
 
     this.player.x = level.playerStart.x;
     this.player.y = level.playerStart.y;
@@ -133,6 +173,7 @@ export class GameScene extends Scene {
     };
 
     this.narrativeSystem.loadLevelNarrative(depthIndex);
+    this.hintSystem.reset();
 
     this._generateParticles(level);
     this._generateStars(level);
@@ -181,6 +222,9 @@ export class GameScene extends Scene {
     this.fallStreaks = [];
     this.realityCracks = [];
     this.scanLines = [];
+    this.movingPlatforms = [];
+    this.portals = [];
+    this.portalParticles = [];
   }
 
   _generateParticles(level) {
@@ -242,11 +286,13 @@ export class GameScene extends Scene {
 
   update(dt) {
     this.time += dt;
+    this.waterReflectionTime += dt / 1000;
     const dtSec = dt / 1000;
 
     this._playTimeAccum = (this._playTimeAccum || 0) + dt;
     if (this._playTimeAccum >= 5000) {
       saveSystem.addPlayTime(this._playTimeAccum);
+      saveSystem.saveShownHints(this.hintSystem.getShownHints());
       this._playTimeAccum = 0;
     }
 
@@ -358,6 +404,20 @@ export class GameScene extends Scene {
       }
     }
 
+    this._updateMovingPlatforms(dt);
+
+    for (const mp of this.movingPlatforms) {
+      if (this._checkPlatformCollision(mp, playerW, playerH)) {
+        this._resolvePlatformCollision(mp, playerW, playerH);
+        if (this.player.onGround) {
+          this.player.x += mp.x - mp.prevX;
+          this.player.y += mp.y - mp.prevY;
+        }
+      }
+    }
+
+    this._updatePortals(dt, playerW, playerH);
+
     this.player.x = Math.max(20, Math.min(1260, this.player.x));
 
     if (this.player.y > 750 && !this.dying && !this.respawning) {
@@ -453,6 +513,45 @@ export class GameScene extends Scene {
     this.narrativeSystem.update(dt, this.player.x, this.player.y - 24, this.anchorCount, this.anchors.length);
 
     this._updateInteractHint();
+
+    let anchorNearby = false;
+    for (const anchor of this.anchors) {
+      if (anchor.collected) continue;
+      const dx = this.player.x - anchor.x;
+      const dy = (this.player.y - 24) - anchor.y;
+      if (Math.sqrt(dx * dx + dy * dy) < 60) {
+        anchorNearby = true;
+        break;
+      }
+    }
+
+    let portalNearby = false;
+    for (const portal of this.portals) {
+      const dx = this.player.x - portal.x;
+      const dy = (this.player.y - 24) - portal.y;
+      if (Math.sqrt(dx * dx + dy * dy) < 50) {
+        portalNearby = true;
+        break;
+      }
+    }
+
+    let movingPlatformNearby = false;
+    for (const mp of this.movingPlatforms) {
+      const dx = this.player.x - (mp.x + mp.w / 2);
+      const dy = (this.player.y - 24) - (mp.y + mp.h / 2);
+      if (Math.sqrt(dx * dx + dy * dy) < 80) {
+        movingPlatformNearby = true;
+        break;
+      }
+    }
+
+    this.hintSystem.checkTriggers(
+      this.player.x, this.player.y - 24,
+      this.input, this.anchorCount,
+      anchorNearby, portalNearby, movingPlatformNearby,
+      this.player.onGround
+    );
+    this.hintSystem.update(dt, this.player.x, this.player.y);
 
     if (this.input.justPressed('Escape') && !this.dying && !this.respawning) {
       this.sceneManager.switchTo('pause');
@@ -557,6 +656,110 @@ export class GameScene extends Scene {
     }
   }
 
+  _updateMovingPlatforms(dt) {
+    const dtSec = dt / 1000;
+    for (const mp of this.movingPlatforms) {
+      mp.prevX = mp.x;
+      mp.prevY = mp.y;
+      mp.phase += mp.speed * dtSec;
+
+      switch (mp.moveType) {
+        case 'horizontal':
+          mp.x = mp.originX + Math.sin(mp.phase) * mp.range;
+          break;
+        case 'vertical':
+          mp.y = mp.originY + Math.sin(mp.phase) * mp.range;
+          break;
+        case 'circular':
+          mp.x = mp.originX + Math.cos(mp.phase) * mp.range;
+          mp.y = mp.originY + Math.sin(mp.phase) * mp.range * 0.6;
+          break;
+      }
+    }
+  }
+
+  _updatePortals(dt, playerW, playerH) {
+    if (this.portalCooldown > 0) {
+      this.portalCooldown -= dt;
+    }
+
+    for (const portal of this.portals) {
+      portal.pulse += dt * 0.004;
+
+      if (Math.random() < 0.3) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Math.random() * 15;
+        portal.particles.push({
+          x: portal.x + Math.cos(angle) * dist,
+          y: portal.y + Math.sin(angle) * dist,
+          vx: Math.cos(angle) * 0.3,
+          vy: -Math.random() * 0.5 - 0.2,
+          size: Math.random() * 2 + 1,
+          alpha: 0.8,
+          life: 800,
+        });
+      }
+
+      for (let i = portal.particles.length - 1; i >= 0; i--) {
+        const p = portal.particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= dt;
+        p.alpha = Math.max(0, p.life / 800);
+        if (p.life <= 0) {
+          portal.particles.splice(i, 1);
+        }
+      }
+    }
+
+    for (const p of this.portalParticles) {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.life -= dt;
+      p.alpha = Math.max(0, p.life / 600);
+    }
+    this.portalParticles = this.portalParticles.filter(p => p.life > 0);
+
+    if (this.portalCooldown > 0) return;
+
+    const px = this.player.x;
+    const py = this.player.y - playerH / 2;
+
+    for (const portal of this.portals) {
+      const dx = px - portal.x;
+      const dy = py - portal.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < 25) {
+        const pairedPortal = this.portals.find(p => p.id === portal.pairedId);
+        if (pairedPortal) {
+          this.player.x = pairedPortal.x;
+          this.player.y = pairedPortal.y + playerH / 2;
+          this.player.vx = 0;
+          this.player.vy = 0;
+          this.portalCooldown = 1000;
+
+          for (let i = 0; i < 20; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = Math.random() * 2 + 1;
+            this.portalParticles.push({
+              x: pairedPortal.x,
+              y: pairedPortal.y,
+              vx: Math.cos(angle) * speed,
+              vy: Math.sin(angle) * speed,
+              size: Math.random() * 3 + 1,
+              alpha: 1,
+              life: 600,
+            });
+          }
+
+          if (this.audio) this.audio.playSFX('mirrorRotate');
+          break;
+        }
+      }
+    }
+  }
+
   _updateInteractHint() {
     let nearestDist = Infinity;
     let hint = '';
@@ -600,15 +803,19 @@ export class GameScene extends Scene {
     this._renderLevelBackground(ctx, w, h, level);
     this._renderLevelStars(ctx, w, h);
     this._renderLevelFog(ctx, w, h, level);
+    this._renderWaterReflection(ctx, w, h, level);
     this._renderDecorations(ctx, w, h);
     this._renderPlatforms(ctx, w, h, level);
+    this._renderMovingPlatforms(ctx, w, h, level);
     this._renderAnchors(ctx, w, h);
+    this._renderPortals(ctx, w, h);
     this.narrativeSystem.renderFragments(ctx);
     this.puzzleManager.render(ctx);
     this._renderParticles(ctx, w, h, level);
     this._renderPlayerTrail(ctx);
     this._renderPlayer(ctx, w, h);
     this._renderInteractHint(ctx, w, h);
+    this.hintSystem.render(ctx);
     this._renderHUD(ctx, w, h, level);
     this._renderErosionOverlay(ctx, w, h);
     this._renderColorShift(ctx, w, h);
@@ -837,6 +1044,61 @@ export class GameScene extends Scene {
     }
   }
 
+  _renderWaterReflection(ctx, w, h, level) {
+    const waterY = h * 0.78;
+    const t = this.waterReflectionTime;
+    const breathCycle = Math.sin(t * 0.8) * 0.5 + 0.5;
+    const depthGlow = 0.5;
+
+    ctx.save();
+
+    for (let x = 0; x < w; x += 6) {
+      const waveOffset = Math.sin(x * 0.02 + t * 1.5) * 2 + Math.sin(x * 0.05 + t * 0.8) * 1.5;
+      const wy = waterY + waveOffset;
+
+      const surfaceAlpha = 0.04 + breathCycle * 0.02;
+      ctx.strokeStyle = `rgba(0, 255, 212, ${surfaceAlpha})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, wy);
+      ctx.lineTo(x + 6, wy + Math.sin((x + 6) * 0.02 + t * 1.5) * 2);
+      ctx.stroke();
+    }
+
+    for (let i = 0; i < 15; i++) {
+      const cx = (Math.sin(i * 2.3 + t * 0.1) * 0.5 + 0.5) * w;
+      const cy = waterY + (h - waterY) * (0.2 + (Math.sin(i * 1.7 + t * 0.05) * 0.5 + 0.5) * 0.6);
+      const pulse = Math.sin(t * 2 + i * 1.5) * 0.5 + 0.5;
+      const r = 15 + pulse * 25;
+
+      const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+      glow.addColorStop(0, `rgba(0, 255, 212, ${0.03 * depthGlow * pulse})`);
+      glow.addColorStop(1, 'rgba(0, 255, 212, 0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+    }
+
+    if (this.depth >= 1) {
+      const erosionAlpha = this.depth * 0.02;
+      for (let i = 0; i < 3; i++) {
+        const cx = (Math.sin(i * 3.7 + t * 0.1) * 0.5 + 0.5) * w;
+        const cy = waterY + (h - waterY) * (0.3 + Math.sin(i * 5.1 + t * 0.08) * 0.3);
+        const pulse = Math.sin(t * 3 + i * 2) * 0.5 + 0.5;
+
+        ctx.strokeStyle = `rgba(255, 107, 53, ${0.1 * erosionAlpha * pulse})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        const len = 15 + this.depth * 10;
+        const angle = Math.sin(i * 2.1) * Math.PI;
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + Math.cos(angle) * len, cy + Math.sin(angle) * len);
+        ctx.stroke();
+      }
+    }
+
+    ctx.restore();
+  }
+
   _renderDecorations(ctx, w, h) {
     for (const dec of this.decorations) {
       switch (dec.type) {
@@ -949,6 +1211,114 @@ export class GameScene extends Scene {
         ctx.fillRect(plat.x, plat.y - 2, plat.w, 4);
       }
     }
+  }
+
+  _renderMovingPlatforms(ctx, w, h, level) {
+    for (const mp of this.movingPlatforms) {
+      const gradient = ctx.createLinearGradient(mp.x, mp.y, mp.x, mp.y + mp.h);
+      gradient.addColorStop(0, level.platformColor);
+      gradient.addColorStop(0.3, '#0F1A2E');
+      gradient.addColorStop(1, '#0A0E1A');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(mp.x, mp.y, mp.w, mp.h);
+
+      const pulse = Math.sin(this.time * 0.004 + mp.phase) * 0.3 + 0.7;
+      ctx.strokeStyle = `rgba(0, 255, 212, ${0.2 * pulse})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(mp.x, mp.y);
+      ctx.lineTo(mp.x + mp.w, mp.y);
+      ctx.stroke();
+
+      const edgeGlow = ctx.createLinearGradient(mp.x, mp.y, mp.x + mp.w, mp.y);
+      edgeGlow.addColorStop(0, 'rgba(0, 255, 212, 0)');
+      edgeGlow.addColorStop(0.5, `rgba(0, 255, 212, ${0.12 * pulse})`);
+      edgeGlow.addColorStop(1, 'rgba(0, 255, 212, 0)');
+      ctx.fillStyle = edgeGlow;
+      ctx.fillRect(mp.x, mp.y - 2, mp.w, 4);
+
+      const trailAlpha = 0.06 * pulse;
+      if (mp.moveType === 'horizontal' || mp.moveType === 'circular') {
+        const trailW = Math.abs(mp.x - mp.prevX) * 3;
+        if (trailW > 1) {
+          ctx.fillStyle = `rgba(0, 255, 212, ${trailAlpha})`;
+          ctx.fillRect(mp.x - trailW, mp.y, mp.w + trailW * 2, mp.h);
+        }
+      }
+      if (mp.moveType === 'vertical' || mp.moveType === 'circular') {
+        const trailH = Math.abs(mp.y - mp.prevY) * 3;
+        if (trailH > 1) {
+          ctx.fillStyle = `rgba(0, 255, 212, ${trailAlpha})`;
+          ctx.fillRect(mp.x, mp.y - trailH, mp.w, mp.h + trailH * 2);
+        }
+      }
+    }
+  }
+
+  _renderPortals(ctx, w, h) {
+    for (const portal of this.portals) {
+      const pulse = Math.sin(portal.pulse) * 0.3 + 0.7;
+      const outerR = 22 * pulse;
+      const innerR = 10 * pulse;
+
+      const glow = ctx.createRadialGradient(portal.x, portal.y, 0, portal.x, portal.y, outerR * 2);
+      glow.addColorStop(0, `rgba(0, 255, 212, ${0.15 * pulse})`);
+      glow.addColorStop(0.5, `rgba(0, 136, 255, ${0.06 * pulse})`);
+      glow.addColorStop(1, 'rgba(0, 255, 212, 0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(portal.x - outerR * 2, portal.y - outerR * 2, outerR * 4, outerR * 4);
+
+      ctx.save();
+      ctx.translate(portal.x, portal.y);
+      ctx.rotate(this.time * 0.002);
+
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2;
+        const r = i % 2 === 0 ? outerR : innerR;
+        if (i === 0) ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+        else ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+      }
+      ctx.closePath();
+      ctx.fillStyle = `rgba(0, 255, 212, ${0.15 * pulse})`;
+      ctx.fill();
+      ctx.strokeStyle = `rgba(0, 255, 212, ${0.5 * pulse})`;
+      ctx.lineWidth = 1.5;
+      ctx.shadowColor = '#00FFD4';
+      ctx.shadowBlur = 8 * pulse;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      ctx.beginPath();
+      ctx.arc(0, 0, innerR * 0.5, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(0, 255, 212, ${0.3 * pulse})`;
+      ctx.fill();
+
+      ctx.restore();
+
+      for (const p of portal.particles) {
+        if (p.alpha <= 0) continue;
+        ctx.globalAlpha = p.alpha;
+        ctx.fillStyle = COLORS.FLUORESCENT_CYAN;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    for (const p of this.portalParticles) {
+      if (p.alpha <= 0) continue;
+      ctx.globalAlpha = p.alpha;
+      ctx.fillStyle = COLORS.FLUORESCENT_CYAN;
+      ctx.shadowColor = COLORS.FLUORESCENT_CYAN;
+      ctx.shadowBlur = 4;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+    ctx.globalAlpha = 1;
   }
 
   _renderAnchors(ctx) {

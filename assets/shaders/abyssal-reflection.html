@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Abyssal Reflection — 深渊倒影</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --anthropic-dark: #141413;
+            --anthropic-light: #faf9f5;
+            --anthropic-mid-gray: #b0aea5;
+            --anthropic-light-gray: #e8e6dc;
+            --anthropic-orange: #d97757;
+            --anthropic-blue: #6a9bcc;
+            --anthropic-green: #788c5d;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, var(--anthropic-light) 0%, #f5f3ee 100%);
+            min-height: 100vh;
+            color: var(--anthropic-dark);
+        }
+        .container { display: flex; min-height: 100vh; padding: 20px; gap: 20px; }
+        .sidebar {
+            width: 320px; flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 24px; border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(20, 20, 19, 0.1);
+            overflow-y: auto; overflow-x: hidden;
+        }
+        .sidebar h1 { font-family: 'Lora', serif; font-size: 24px; font-weight: 500; color: var(--anthropic-dark); margin-bottom: 8px; }
+        .sidebar .subtitle { color: var(--anthropic-mid-gray); font-size: 14px; margin-bottom: 32px; line-height: 1.4; }
+        .control-section { margin-bottom: 32px; }
+        .control-section h3 { font-size: 16px; font-weight: 600; color: var(--anthropic-dark); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .control-section h3::before { content: '•'; color: var(--anthropic-orange); font-weight: bold; }
+        .seed-input {
+            width: 100%; background: var(--anthropic-light); padding: 12px; border-radius: 8px;
+            font-family: 'Courier New', monospace; font-size: 14px; margin-bottom: 12px;
+            border: 1px solid var(--anthropic-light-gray); text-align: center;
+        }
+        .seed-input:focus { outline: none; border-color: var(--anthropic-orange); box-shadow: 0 0 0 2px rgba(217, 119, 87, 0.1); background: white; }
+        .seed-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+        .control-group { margin-bottom: 20px; }
+        .control-group label { display: block; font-size: 14px; font-weight: 500; color: var(--anthropic-dark); margin-bottom: 8px; }
+        .slider-container { display: flex; align-items: center; gap: 12px; }
+        .slider-container input[type="range"] { flex: 1; height: 4px; background: var(--anthropic-light-gray); border-radius: 2px; outline: none; -webkit-appearance: none; }
+        .slider-container input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; background: var(--anthropic-orange); border-radius: 50%; cursor: pointer; }
+        .slider-container input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; background: var(--anthropic-orange); border-radius: 50%; border: none; cursor: pointer; }
+        .value-display { font-family: 'Courier New', monospace; font-size: 12px; color: var(--anthropic-mid-gray); min-width: 60px; text-align: right; }
+        .color-group { margin-bottom: 16px; }
+        .color-group label { display: block; font-size: 12px; color: var(--anthropic-mid-gray); margin-bottom: 4px; }
+        .color-picker-container { display: flex; align-items: center; gap: 8px; }
+        .color-picker-container input[type="color"] { width: 32px; height: 32px; border: none; border-radius: 6px; cursor: pointer; background: none; padding: 0; }
+        .color-value { font-family: 'Courier New', monospace; font-size: 12px; color: var(--anthropic-mid-gray); }
+        .button { background: var(--anthropic-orange); color: white; border: none; padding: 10px 16px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s ease; width: 100%; }
+        .button:hover { background: #c86641; transform: translateY(-1px); }
+        .button.secondary { background: var(--anthropic-blue); }
+        .button.secondary:hover { background: #5a8bb8; }
+        .button.tertiary { background: var(--anthropic-green); }
+        .button.tertiary:hover { background: #6b7b52; }
+        .button-row { display: flex; gap: 8px; }
+        .button-row .button { flex: 1; }
+        .canvas-area { flex: 1; display: flex; align-items: center; justify-content: center; min-width: 0; }
+        #canvas-container { width: 100%; max-width: 1000px; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 40px rgba(20, 20, 19, 0.1); background: #0A0E1A; }
+        #canvas-container canvas { display: block; width: 100% !important; height: auto !important; }
+        @media (max-width: 600px) { .container { flex-direction: column; } .sidebar { width: 100%; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h1>Abyssal Reflection</h1>
+            <div class="subtitle">深渊倒影 — 水面是两个世界的界面，上方是可见的现实，下方是不可知的深渊</div>
+
+            <div class="control-section">
+                <h3>Seed</h3>
+                <input type="number" id="seed-input" class="seed-input" value="42" onchange="updateSeed()">
+                <div class="seed-controls">
+                    <button class="button secondary" onclick="previousSeed()">← Prev</button>
+                    <button class="button secondary" onclick="nextSeed()">Next →</button>
+                </div>
+                <button class="button tertiary" onclick="randomSeedAndUpdate()">↻ Random</button>
+            </div>
+
+            <div class="control-section">
+                <h3>Parameters</h3>
+                <div class="control-group">
+                    <label>Wave Frequency</label>
+                    <div class="slider-container">
+                        <input type="range" id="waveFreq" min="0.5" max="5.0" step="0.1" value="2.0" oninput="updateParam('waveFreq', this.value)">
+                        <span class="value-display" id="waveFreq-value">2.0</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Reflection Distortion</label>
+                    <div class="slider-container">
+                        <input type="range" id="distortion" min="0.5" max="8.0" step="0.5" value="3.0" oninput="updateParam('distortion', this.value)">
+                        <span class="value-display" id="distortion-value">3.0</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Breath Speed</label>
+                    <div class="slider-container">
+                        <input type="range" id="breathSpeed" min="0.2" max="3.0" step="0.1" value="0.8" oninput="updateParam('breathSpeed', this.value)">
+                        <span class="value-display" id="breathSpeed-value">0.8</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Erosion Intensity</label>
+                    <div class="slider-container">
+                        <input type="range" id="erosionIntensity" min="0.0" max="1.0" step="0.05" value="0.3" oninput="updateParam('erosionIntensity', this.value)">
+                        <span class="value-display" id="erosionIntensity-value">0.3</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Surface Particles</label>
+                    <div class="slider-container">
+                        <input type="range" id="surfaceParticles" min="50" max="500" step="25" value="200" oninput="updateParam('surfaceParticles', this.value)">
+                        <span class="value-display" id="surfaceParticles-value">200</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Depth Glow</label>
+                    <div class="slider-container">
+                        <input type="range" id="depthGlow" min="0.0" max="1.0" step="0.05" value="0.5" oninput="updateParam('depthGlow', this.value)">
+                        <span class="value-display" id="depthGlow-value">0.5</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Colors</h3>
+                <div class="color-group">
+                    <label>Abyss Depth</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color1" value="#0a0e1a" onchange="updateColor('color1', this.value)">
+                        <span class="color-value" id="color1-value">#0a0e1a</span>
+                    </div>
+                </div>
+                <div class="color-group">
+                    <label>Fluorescent Cyan</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color2" value="#00ffd4" onchange="updateColor('color2', this.value)">
+                        <span class="color-value" id="color2-value">#00ffd4</span>
+                    </div>
+                </div>
+                <div class="color-group">
+                    <label>Void Orange</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color3" value="#ff6b35" onchange="updateColor('color3', this.value)">
+                        <span class="color-value" id="color3-value">#ff6b35</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Actions</h3>
+                <div class="button-row">
+                    <button class="button" onclick="resetParameters()">Reset</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="canvas-area">
+            <div id="canvas-container">
+                <div class="loading">Initializing abyssal reflection...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let params = {
+            seed: 42,
+            waveFreq: 2.0,
+            distortion: 3.0,
+            breathSpeed: 0.8,
+            erosionIntensity: 0.3,
+            surfaceParticles: 200,
+            depthGlow: 0.5,
+            colorPalette: ['#0a0e1a', '#00ffd4', '#ff6b35']
+        };
+
+        let defaultParams = {...params};
+        let particles = [];
+        let time = 0;
+        let waterlineY;
+
+        function setup() {
+            let canvas = createCanvas(1200, 800);
+            canvas.parent('canvas-container');
+            waterlineY = height * 0.45;
+            initializeSystem();
+            document.querySelector('.loading').style.display = 'none';
+        }
+
+        function initializeSystem() {
+            randomSeed(params.seed);
+            noiseSeed(params.seed);
+            particles = [];
+            for (let i = 0; i < params.surfaceParticles; i++) {
+                particles.push({
+                    x: random(width),
+                    y: waterlineY + random(-20, 60),
+                    vx: 0,
+                    vy: 0,
+                    size: random(1, 3),
+                    alpha: random(0.1, 0.5),
+                    depth: random(0, 1),
+                    phase: random(TWO_PI)
+                });
+            }
+            time = 0;
+        }
+
+        function draw() {
+            time += 0.016;
+            randomSeed(params.seed);
+            noiseSeed(params.seed);
+
+            renderAboveWater();
+            renderWaterSurface();
+            renderBelowWater();
+            renderReflection();
+            renderParticles();
+            renderErosionOverlay();
+        }
+
+        function renderAboveWater() {
+            for (let y = 0; y < waterlineY; y++) {
+                let t = y / waterlineY;
+                let r = lerp(10, 26, t);
+                let g = lerp(14, 39, t);
+                let b = lerp(26, 68, t);
+                stroke(r, g, b);
+                line(0, y, width, y);
+            }
+
+            for (let i = 0; i < 80; i++) {
+                let sx = (noise(i * 0.3, time * 0.1) * width * 1.2) - width * 0.1;
+                let sy = noise(i * 0.7, time * 0.05) * waterlineY * 0.8;
+                let brightness = noise(i, time * 0.2) * 0.6 + 0.2;
+                let sz = noise(i * 1.3) * 1.5 + 0.3;
+                noStroke();
+                fill(232, 230, 240, brightness * 255);
+                ellipse(sx, sy, sz, sz);
+            }
+        }
+
+        function renderWaterSurface() {
+            let breathCycle = sin(time * params.breathSpeed) * 0.5 + 0.5;
+
+            noFill();
+            for (let layer = 0; layer < 3; layer++) {
+                let yOffset = waterlineY + layer * 3;
+                let alpha = (0.4 - layer * 0.1) * (0.6 + breathCycle * 0.4);
+                stroke(0, 255, 212, alpha * 255);
+                strokeWeight(1.5 - layer * 0.3);
+                beginShape();
+                for (let x = 0; x <= width; x += 4) {
+                    let waveY = yOffset +
+                        sin(x * params.waveFreq * 0.01 + time * 1.5 + layer) * 3 +
+                        sin(x * params.waveFreq * 0.025 + time * 0.8) * 2 +
+                        noise(x * 0.01, time * 0.3 + layer) * 4;
+                    vertex(x, waveY);
+                }
+                endShape();
+            }
+
+            let surfaceGlowAlpha = 0.03 + breathCycle * 0.02;
+            noStroke();
+            for (let x = 0; x < width; x += 20) {
+                let waveY = waterlineY + sin(x * params.waveFreq * 0.01 + time * 1.5) * 3;
+                fill(0, 255, 212, surfaceGlowAlpha * 255);
+                ellipse(x, waveY, 30, 8);
+            }
+        }
+
+        function renderBelowWater() {
+            for (let y = waterlineY; y < height; y++) {
+                let t = (y - waterlineY) / (height - waterlineY);
+                let r = lerp(26, 5, t);
+                let g = lerp(39, 0, t);
+                let b = lerp(68, 5, t);
+                let breathCycle = sin(time * params.breathSpeed) * 0.5 + 0.5;
+                let glowAmount = params.depthGlow * breathCycle * (1 - t) * 0.15;
+                r += glowAmount * 0;
+                g += glowAmount * 255;
+                b += glowAmount * 212;
+                stroke(min(255, r), min(255, g), min(255, b));
+                line(0, y, width, y);
+            }
+        }
+
+        function renderReflection() {
+            let breathCycle = sin(time * params.breathSpeed) * 0.5 + 0.5;
+            let reflectAlpha = 0.15 + breathCycle * 0.1;
+
+            for (let i = 0; i < 40; i++) {
+                let origX = noise(i * 0.5, time * 0.05) * width;
+                let origY = noise(i * 0.8, time * 0.03) * waterlineY * 0.7;
+                let reflY = waterlineY + (waterlineY - origY) * 0.6;
+
+                if (reflY > height) continue;
+
+                let distFromSurface = (reflY - waterlineY) / (height - waterlineY);
+                let distortX = (noise(origX * 0.01, time * 0.5 + i) - 0.5) * params.distortion * (1 + distFromSurface * 3) * 20;
+                let distortY = noise(origX * 0.02, time * 0.3 + i * 2) * params.distortion * distFromSurface * 15;
+
+                let finalX = origX + distortX;
+                let finalY = reflY + distortY;
+                let sz = (2 + noise(i * 1.5) * 3) * (1 - distFromSurface * 0.5);
+
+                let alpha = reflectAlpha * (1 - distFromSurface * 0.8);
+                if (alpha < 0.02) continue;
+
+                noStroke();
+                fill(232, 230, 240, alpha * 255);
+                ellipse(finalX, finalY, sz, sz * 0.6);
+
+                if (distFromSurface > 0.3 && params.depthGlow > 0.2) {
+                    fill(0, 255, 212, alpha * 0.3 * params.depthGlow);
+                    ellipse(finalX, finalY, sz * 2, sz * 1.2);
+                }
+            }
+
+            for (let i = 0; i < 8; i++) {
+                let cx = noise(i * 2.3, time * 0.1) * width;
+                let cy = waterlineY + (height - waterlineY) * (0.3 + noise(i * 1.7, time * 0.05) * 0.5);
+                let pulse = sin(time * 2 + i * 1.5) * 0.5 + 0.5;
+                let r = 20 + pulse * 30;
+
+                noStroke();
+                fill(0, 255, 212, 0.02 * params.depthGlow * pulse * 255);
+                ellipse(cx, cy, r * 2, r * 2);
+                fill(0, 255, 212, 0.05 * params.depthGlow * pulse * 255);
+                ellipse(cx, cy, r, r);
+            }
+        }
+
+        function renderParticles() {
+            let breathCycle = sin(time * params.breathSpeed) * 0.5 + 0.5;
+
+            for (let p of particles) {
+                let nx = noise(p.x * 0.005, p.y * 0.005, time * 0.2);
+                let ny = noise(p.x * 0.005 + 100, p.y * 0.005, time * 0.2);
+
+                p.vx = (nx - 0.5) * 1.5;
+                p.vy = (ny - 0.5) * 0.8 + 0.1;
+
+                p.x += p.vx;
+                p.y += p.vy;
+
+                if (p.x < 0) p.x = width;
+                if (p.x > width) p.x = 0;
+                if (p.y < waterlineY - 20) p.y = height - 10;
+                if (p.y > height) { p.y = waterlineY + 10; p.x = random(width); }
+
+                let isBelowSurface = p.y > waterlineY;
+                let depthFactor = isBelowSurface ? (p.y - waterlineY) / (height - waterlineY) : 0;
+
+                noStroke();
+                if (isBelowSurface) {
+                    let cyanAlpha = p.alpha * (1 - depthFactor * 0.5) * (0.5 + breathCycle * 0.5);
+                    fill(0, 255, 212, cyanAlpha * 255);
+                    ellipse(p.x, p.y, p.size, p.size);
+                    if (depthFactor < 0.3 && params.depthGlow > 0.3) {
+                        fill(0, 255, 212, cyanAlpha * 0.2 * params.depthGlow * 255);
+                        ellipse(p.x, p.y, p.size * 3, p.size * 3);
+                    }
+                } else {
+                    fill(232, 230, 240, p.alpha * 0.5 * 255);
+                    ellipse(p.x, p.y, p.size * 0.7, p.size * 0.7);
+                }
+            }
+        }
+
+        function renderErosionOverlay() {
+            if (params.erosionIntensity < 0.05) return;
+
+            let ei = params.erosionIntensity;
+
+            for (let y = waterlineY; y < height; y += 3) {
+                let t = (y - waterlineY) / (height - waterlineY);
+                let lineAlpha = ei * t * 0.15;
+                if (random() < 0.02 * ei) {
+                    stroke(255, 107, 53, lineAlpha * 255);
+                    strokeWeight(1);
+                    line(0, y, width, y);
+                }
+            }
+
+            if (ei > 0.3) {
+                let crackCount = floor(ei * 3);
+                for (let i = 0; i < crackCount; i++) {
+                    let cx = noise(i * 3.7, time * 0.1) * width;
+                    let cy = waterlineY + noise(i * 5.1, time * 0.08) * (height - waterlineY);
+                    let pulse = sin(time * 3 + i * 2) * 0.5 + 0.5;
+
+                    stroke(255, 107, 53, 0.15 * ei * pulse * 255);
+                    strokeWeight(1);
+                    noFill();
+                    let len = 20 + ei * 30;
+                    let angle = noise(i * 2.1) * TWO_PI;
+                    line(cx, cy, cx + cos(angle) * len, cy + sin(angle) * len);
+                    line(cx, cy, cx + cos(angle + 0.8) * len * 0.7, cy + sin(angle + 0.8) * len * 0.7);
+                }
+            }
+
+            if (ei > 0.5 && random() < 0.03 * ei) {
+                let glitchY = random(waterlineY, height);
+                let glitchH = random(5, 20);
+                noStroke();
+                fill(255, 107, 53, 0.05 * ei * 255);
+                rect(0, glitchY, width, glitchH);
+            }
+        }
+
+        function updateParam(paramName, value) {
+            let numVal = parseFloat(value);
+            params[paramName] = numVal;
+            document.getElementById(paramName + '-value').textContent = numVal;
+            if (paramName === 'surfaceParticles') {
+                initializeSystem();
+            }
+        }
+
+        function updateColor(colorId, value) {
+            let idx = colorId === 'color1' ? 0 : colorId === 'color2' ? 1 : 2;
+            params.colorPalette[idx] = value;
+            document.getElementById(colorId + '-value').textContent = value;
+        }
+
+        function updateSeedDisplay() {
+            document.getElementById('seed-input').value = params.seed;
+        }
+
+        function updateSeed() {
+            let input = document.getElementById('seed-input');
+            let newSeed = parseInt(input.value);
+            if (newSeed && newSeed > 0) {
+                params.seed = newSeed;
+                initializeSystem();
+            } else {
+                updateSeedDisplay();
+            }
+        }
+
+        function previousSeed() {
+            params.seed = Math.max(1, params.seed - 1);
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function nextSeed() {
+            params.seed = params.seed + 1;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function randomSeedAndUpdate() {
+            params.seed = Math.floor(Math.random() * 999999) + 1;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function resetParameters() {
+            params = {...defaultParams};
+            document.getElementById('waveFreq').value = params.waveFreq;
+            document.getElementById('waveFreq-value').textContent = params.waveFreq;
+            document.getElementById('distortion').value = params.distortion;
+            document.getElementById('distortion-value').textContent = params.distortion;
+            document.getElementById('breathSpeed').value = params.breathSpeed;
+            document.getElementById('breathSpeed-value').textContent = params.breathSpeed;
+            document.getElementById('erosionIntensity').value = params.erosionIntensity;
+            document.getElementById('erosionIntensity-value').textContent = params.erosionIntensity;
+            document.getElementById('surfaceParticles').value = params.surfaceParticles;
+            document.getElementById('surfaceParticles-value').textContent = params.surfaceParticles;
+            document.getElementById('depthGlow').value = params.depthGlow;
+            document.getElementById('depthGlow-value').textContent = params.depthGlow;
+            document.getElementById('color1').value = params.colorPalette[0];
+            document.getElementById('color1-value').textContent = params.colorPalette[0];
+            document.getElementById('color2').value = params.colorPalette[1];
+            document.getElementById('color2-value').textContent = params.colorPalette[1];
+            document.getElementById('color3').value = params.colorPalette[2];
+            document.getElementById('color3-value').textContent = params.colorPalette[2];
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        window.addEventListener('load', function() {
+            updateSeedDisplay();
+        });
+    </script>
+</body>
+</html>
