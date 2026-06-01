@@ -717,7 +717,7 @@ export class EndingScene extends Scene {
 
   _computeStats() {
     const data = saveSystem.getData();
-    const totalAnchors = 5 + 5 + 4 + 3;
+    const totalAnchors = 6 + 6 + 7 + 8;
     let collectedAnchors = 0;
     for (let d = 0; d < 4; d++) {
       const lp = data.levelProgress && data.levelProgress[d];

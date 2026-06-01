@@ -1,11 +1,12 @@
 import { Scene } from '../core/scene.js';
-import { COLORS, DEPTH_COLORS } from '../constants.js';
+import { COLORS, DEPTH_COLORS, GAME_WIDTH, GAME_HEIGHT } from '../constants.js';
 import { PuzzleManager } from '../core/puzzle-manager.js';
 import { LevelData } from '../core/level-data.js';
 import { NarrativeSystem } from '../core/narrative-system.js';
 import { HintSystem } from '../core/hint-system.js';
 import { resourceManager } from '../core/resource-manager.js';
 import { saveSystem } from '../core/save-system.js';
+import { Camera } from '../core/camera.js';
 
 export class GameScene extends Scene {
   constructor(input, sceneManager, audioSystem) {
@@ -61,6 +62,8 @@ export class GameScene extends Scene {
     this.realityCracks = [];
     this._bgGradientCache = null;
     this._bgGradientKey = '';
+    this._nebulaCache = null;
+    this._nebulaCacheKey = -1;
     this._scanLineImage = null;
     this._scanLineDirty = true;
     this.dying = false;
@@ -81,6 +84,7 @@ export class GameScene extends Scene {
     this.portalCooldown = 0;
     this.portalParticles = [];
     this.waterReflectionTime = 0;
+    this.camera = new Camera();
   }
 
   init() {
@@ -225,6 +229,12 @@ export class GameScene extends Scene {
     this.landingImpactTimer = 0;
     this._initScanLines();
     this._initRealityCracks();
+
+    const levelW = level.width || GAME_WIDTH;
+    const levelH = level.height || GAME_HEIGHT;
+    this.camera.setViewport(GAME_WIDTH, GAME_HEIGHT);
+    this.camera.setBounds(0, 0, levelW, levelH);
+    this.camera.reset(level.playerStart.x, level.playerStart.y - 40);
   }
 
   _releaseLevelResources() {
@@ -245,10 +255,12 @@ export class GameScene extends Scene {
   _generateParticles(level) {
     this.particles = [];
     const count = level.ambientParticleCount || 40;
+    const lw = level.width || 1280;
+    const lh = level.height || 720;
     for (let i = 0; i < count; i++) {
       this.particles.push({
-        x: Math.random() * 1280,
-        y: Math.random() * 720,
+        x: Math.random() * lw,
+        y: Math.random() * lh,
         vx: (Math.random() - 0.5) * 0.3,
         vy: -Math.random() * 0.5 - 0.1,
         size: Math.random() * 3 + 1,
@@ -275,9 +287,10 @@ export class GameScene extends Scene {
   _generateStars(level) {
     this.levelStars = [];
     const count = level.starCount || 100;
+    const lw = level.width || 1280;
     for (let i = 0; i < count; i++) {
       this.levelStars.push({
-        x: Math.random() * 1280,
+        x: Math.random() * lw,
         y: Math.random() * 500,
         size: Math.random() * 1.5 + 0.3,
         brightness: Math.random() * 0.6 + 0.2,
@@ -288,10 +301,12 @@ export class GameScene extends Scene {
 
   _generateFallStreaks() {
     this.fallStreaks = [];
+    const lw = this.currentLevel ? (this.currentLevel.width || 1280) : 1280;
+    const lh = this.currentLevel ? (this.currentLevel.height || 720) : 720;
     for (let i = 0; i < 60; i++) {
       this.fallStreaks.push({
-        x: Math.random() * 1280,
-        y: Math.random() * 720,
+        x: Math.random() * lw,
+        y: Math.random() * lh,
         speed: Math.random() * 400 + 200,
         length: Math.random() * 60 + 20,
         alpha: Math.random() * 0.6 + 0.2,
@@ -470,7 +485,11 @@ export class GameScene extends Scene {
 
     this.player.x = Math.max(20, Math.min(1260, this.player.x));
 
-    if (this.player.y > 750 && !this.dying && !this.respawning) {
+    this.camera.follow(this.player.x, this.player.y - 24, this.player.facing);
+    this.camera.update(dt);
+
+    const deathY = (this.currentLevel ? (this.currentLevel.height || 720) : 720) + 50;
+    if (this.player.y > deathY && !this.dying && !this.respawning) {
       this._triggerDeath();
     }
 
@@ -496,6 +515,8 @@ export class GameScene extends Scene {
       }
     }
 
+    const lw = this.currentLevel ? (this.currentLevel.width || 1280) : 1280;
+    const lh = this.currentLevel ? (this.currentLevel.height || 720) : 720;
     for (const p of this.particles) {
       let vxMod = p.vx;
       let vyMod = p.vy;
@@ -508,11 +529,11 @@ export class GameScene extends Scene {
       p.x += vxMod;
       p.y += vyMod;
       if (p.y < -10) {
-        p.y = 730;
-        p.x = Math.random() * 1280;
+        p.y = lh + 10;
+        p.x = Math.random() * lw;
       }
-      if (p.x < -10) p.x = 1290;
-      if (p.x > 1290) p.x = -10;
+      if (p.x < -10) p.x = lw + 10;
+      if (p.x > lw + 10) p.x = -10;
     }
 
     this.erosionLevel = this.anchorCount / Math.max(1, this.anchors.length);
@@ -633,9 +654,10 @@ export class GameScene extends Scene {
       }
       for (const s of this.fallStreaks) {
         s.y -= s.speed * (dt / 1000);
+        const lh = this.currentLevel ? (this.currentLevel.height || 720) : 720;
         if (s.y + s.length < 0) {
-          s.y = 720 + Math.random() * 100;
-          s.x = Math.random() * 1280;
+          s.y = lh + Math.random() * 100;
+          s.x = Math.random() * (this.currentLevel ? (this.currentLevel.width || 1280) : 1280);
         }
       }
     } else if (this.transitionProgress <= 1.0) {
@@ -860,6 +882,10 @@ export class GameScene extends Scene {
 
     this._renderLevelBackground(ctx, w, h, level);
     this._renderLevelStars(ctx, w, h);
+
+    ctx.save();
+    ctx.translate(this.camera.getOffsetX(), this.camera.getOffsetY());
+
     this._renderLevelFog(ctx, w, h, level);
     this._renderWaterReflection(ctx, w, h, level);
     this._renderDecorations(ctx, w, h);
@@ -875,6 +901,9 @@ export class GameScene extends Scene {
     this._renderPlayer(ctx, w, h);
     this._renderInteractHint(ctx, w, h);
     this.hintSystem.render(ctx);
+
+    ctx.restore();
+
     this._renderHUD(ctx, w, h, level);
     this._renderErosionOverlay(ctx, w, h);
     this._renderColorShift(ctx, w, h);
@@ -901,11 +930,17 @@ export class GameScene extends Scene {
     }
 
     if (this.dying) {
+      ctx.save();
+      ctx.translate(this.camera.getOffsetX(), this.camera.getOffsetY());
       this._renderDeath(ctx, w, h);
+      ctx.restore();
     }
 
     if (this.respawning) {
+      ctx.save();
+      ctx.translate(this.camera.getOffsetX(), this.camera.getOffsetY());
       this._renderRespawn(ctx, w, h);
+      ctx.restore();
     }
 
     if (this.input.isMobile()) {
@@ -1127,20 +1162,81 @@ export class GameScene extends Scene {
     radGrad.addColorStop(1, 'rgba(10, 14, 26, 0)');
     ctx.fillStyle = radGrad;
     ctx.fillRect(0, 0, w, h);
+
+    this._renderNebulaLayer(ctx, w, h, level);
+  }
+
+  _renderNebulaLayer(ctx, w, h, level) {
+    if (!this._nebulaCache || this._nebulaCacheKey !== this.depth) {
+      this._nebulaCacheKey = this.depth;
+      const offscreen = document.createElement('canvas');
+      offscreen.width = w;
+      offscreen.height = h;
+      const nctx = offscreen.getContext('2d');
+
+      const nebulaBlobs = this.depth >= 3 ? 8 : (this.depth >= 2 ? 6 : 4);
+      const seed = this.depth * 1337 + 42;
+      const rng = this._seededRandom(seed);
+
+      for (let i = 0; i < nebulaBlobs; i++) {
+        const bx = rng() * w;
+        const by = rng() * h * 0.8;
+        const br = (rng() * 200 + 100) * (1 + this.depth * 0.3);
+        const alpha = rng() * 0.06 + 0.02;
+
+        const colors = [
+          `rgba(${level.fogColor}, ${alpha})`,
+          `rgba(0, 255, 212, ${alpha * 0.3})`,
+          `rgba(255, 107, 53, ${alpha * 0.2})`,
+        ];
+
+        for (let j = 0; j < 3; j++) {
+          const ox = (rng() - 0.5) * br * 0.5;
+          const oy = (rng() - 0.5) * br * 0.5;
+          const grad = nctx.createRadialGradient(
+            bx + ox, by + oy, 0,
+            bx + ox, by + oy, br
+          );
+          grad.addColorStop(0, colors[j]);
+          grad.addColorStop(0.6, `rgba(${level.fogColor}, ${alpha * 0.3})`);
+          grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+          nctx.fillStyle = grad;
+          nctx.fillRect(0, 0, w, h);
+        }
+      }
+
+      this._nebulaCache = offscreen;
+    }
+
+    const parallaxX = -this.camera.x * 0.05;
+    const parallaxY = -this.camera.y * 0.03;
+    ctx.drawImage(this._nebulaCache, parallaxX, parallaxY);
+  }
+
+  _seededRandom(seed) {
+    let s = seed;
+    return function() {
+      s = (s * 16807 + 0) % 2147483647;
+      return (s - 1) / 2147483646;
+    };
   }
 
   _renderLevelStars(ctx, w, h) {
+    const parallaxX = -this.camera.x * 0.02;
+    const parallaxY = -this.camera.y * 0.01;
     for (const star of this.levelStars) {
+      const sx = star.x + parallaxX;
+      const sy = star.y + parallaxY;
       const twinkle = 0.4 + 0.6 * Math.sin(this.time * 0.002 + star.phase);
       const alpha = star.brightness * twinkle;
       ctx.beginPath();
-      ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+      ctx.arc(sx, sy, star.size, 0, Math.PI * 2);
       ctx.fillStyle = `rgba(232, 230, 240, ${alpha})`;
       ctx.fill();
 
       if (star.size > 1.0 && star.brightness > 0.5) {
         ctx.beginPath();
-        ctx.arc(star.x, star.y, star.size * 3, 0, Math.PI * 2);
+        ctx.arc(sx, sy, star.size * 3, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(0, 255, 212, ${alpha * 0.08})`;
         ctx.fill();
       }
@@ -1745,7 +1841,8 @@ export class GameScene extends Scene {
 
   _initScanLines() {
     this.scanLines = [];
-    for (let y = 0; y < 720; y += 3) {
+    const lh = this.currentLevel ? (this.currentLevel.height || 720) : 720;
+    for (let y = 0; y < lh; y += 3) {
       this.scanLines.push({
         y,
         isGlitch: Math.random() < 0.05,
@@ -1826,6 +1923,8 @@ export class GameScene extends Scene {
 
     const crackCount = this.depth >= 3 ? 5 : 2;
     const edges = ['top', 'bottom', 'left', 'right'];
+    const lw = this.currentLevel ? (this.currentLevel.width || 1280) : 1280;
+    const lh = this.currentLevel ? (this.currentLevel.height || 720) : 720;
 
     for (let i = 0; i < crackCount; i++) {
       const edge = edges[Math.floor(Math.random() * edges.length)];
@@ -1833,23 +1932,23 @@ export class GameScene extends Scene {
 
       switch (edge) {
         case 'top':
-          x = Math.random() * 1280;
+          x = Math.random() * lw;
           y = 0;
           angle = Math.PI * 0.3 + Math.random() * Math.PI * 0.4;
           break;
         case 'bottom':
-          x = Math.random() * 1280;
-          y = 720;
+          x = Math.random() * lw;
+          y = lh;
           angle = -Math.PI * 0.3 - Math.random() * Math.PI * 0.4;
           break;
         case 'left':
           x = 0;
-          y = Math.random() * 720;
+          y = Math.random() * lh;
           angle = -Math.PI * 0.2 + Math.random() * Math.PI * 0.4;
           break;
         case 'right':
-          x = 1280;
-          y = Math.random() * 720;
+          x = lw;
+          y = Math.random() * lh;
           angle = Math.PI * 0.6 + Math.random() * Math.PI * 0.4;
           break;
       }
@@ -1973,7 +2072,7 @@ export class GameScene extends Scene {
       const baseX = this.player.x + (Math.random() - 0.5) * 100;
       const segments = [];
       let cx = baseX;
-      let cy = 720;
+      let cy = (this.currentLevel ? (this.currentLevel.height || 720) : 720);
       const targetY = this.player.y - 24;
       const steps = 6 + Math.floor(Math.random() * 4);
       for (let j = 0; j < steps; j++) {
@@ -2155,7 +2254,7 @@ export class GameScene extends Scene {
       glow.addColorStop(0.5, `rgba(255, 0, 68, ${0.1 * glowIntensity * pulse})`);
       glow.addColorStop(1, 'rgba(255, 107, 53, 0)');
       ctx.fillStyle = glow;
-      ctx.fillRect(0, 0, w, h);
+      ctx.fillRect(this.player.x - 300, h - 300, 600, 300);
     }
 
     for (const tendril of this.deathTendrils) {

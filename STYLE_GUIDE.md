@@ -75,6 +75,7 @@
 - 水面反射效果生成器：assets/shaders/abyssal-reflection.html
 - 深渊脉动生成器：assets/shaders/abyssal-pulse.html
 - 深渊记忆回响生成器：assets/shaders/abyssal-echo.html
+- 深渊星云生成器：assets/shaders/abyss-nebula-generator.html（多层 domain-warped 噪声星云，含侵蚀叠加和深度视差）
 
 ## Shader 风格参考
 - 星空粒子：缓慢飘散的星尘，有深度视差
@@ -85,6 +86,7 @@
 - 水面反射：双界面视觉（水上/水下），多层正弦波纹 + 噪声扭曲反射 + 深渊荧光渗透 + 侵蚀叠加
 - 深渊脉动：奇点引力场 + 多频呼吸系统（0.1Hz/0.3Hz/1Hz 三频共振）+ 侵蚀脉冲冲击波 + 记忆残响几何碎片
 - 深渊记忆回响：记忆波纹扩散 + 碎片浮现（六边形/三角形/菱形）+ 时间扭曲场 + 回声脉冲冲击波
+- 深渊星云：多层 domain-warped Perlin 噪声 + 递归扭曲 + 深度分层色彩（蓝→紫→红→黑）+ 侵蚀叠加 + 视差滚动
 
 ## 侵蚀系统视觉规范
 - 深度0（浅层）：无侵蚀，纯净童话感
