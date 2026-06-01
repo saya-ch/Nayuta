@@ -40,10 +40,15 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Move build output to root
+        run: |
+          cp -r dist/* ./
+          rm -rf dist
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./dist
+          path: ./
 
       - name: Deploy to GitHub Pages
         id: deployment
