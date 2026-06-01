@@ -26,7 +26,7 @@ export class PuzzleElement {
         this._updateLightSource(puzzleManager);
         break;
       case 'lightMirror':
-        this._updateMirror();
+        this._updateMirror(playerX, playerY);
         break;
       case 'lightTarget':
         this._updateLightTarget(puzzleManager);
@@ -61,8 +61,11 @@ export class PuzzleElement {
     }
   }
 
-  _updateMirror() {
+  _updateMirror(playerX, playerY) {
     if (!this.config.angle) this.config.angle = 0;
+    const dx = playerX - this.x;
+    const dy = playerY - this.y;
+    this._playerNear = dx * dx + dy * dy < 2025;
   }
 
   _updateLightTarget(puzzleManager) {
@@ -211,6 +214,16 @@ export class PuzzleElement {
 
     ctx.save();
     ctx.translate(this.x, this.y);
+
+    if (this._playerNear) {
+      const highlightPulse = Math.sin(this.pulse * 2) * 0.3 + 0.7;
+      const highlightGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, 35);
+      highlightGlow.addColorStop(0, `rgba(0, 255, 212, ${0.15 * highlightPulse})`);
+      highlightGlow.addColorStop(0.5, `rgba(0, 255, 212, ${0.06 * highlightPulse})`);
+      highlightGlow.addColorStop(1, 'rgba(0, 255, 212, 0)');
+      ctx.fillStyle = highlightGlow;
+      ctx.fillRect(-35, -35, 70, 70);
+    }
 
     ctx.beginPath();
     ctx.arc(0, 0, 18, 0, Math.PI * 2);
@@ -384,6 +397,24 @@ export class PuzzleElement {
     ctx.closePath();
     ctx.fillStyle = this.activated ? 'rgba(0, 255, 212, 0.3)' : 'rgba(107, 107, 141, 0.15)';
     ctx.fill();
+
+    if (this._playerNear) {
+      const highlightPulse = Math.sin(this.pulse * 2) * 0.3 + 0.7;
+      const highlightGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, 30);
+      highlightGlow.addColorStop(0, `rgba(0, 255, 212, ${0.12 * highlightPulse})`);
+      highlightGlow.addColorStop(0.5, `rgba(0, 255, 212, ${0.05 * highlightPulse})`);
+      highlightGlow.addColorStop(1, 'rgba(0, 255, 212, 0)');
+      ctx.fillStyle = highlightGlow;
+      ctx.fillRect(-30, -30, 60, 60);
+
+      ctx.save();
+      ctx.rotate(-rad);
+      ctx.font = '300 11px "Segoe UI", system-ui, sans-serif';
+      ctx.fillStyle = `rgba(0, 255, 212, ${0.5 + highlightPulse * 0.3})`;
+      ctx.textAlign = 'center';
+      ctx.fillText('E 旋转', 0, -25);
+      ctx.restore();
+    }
 
     ctx.restore();
   }

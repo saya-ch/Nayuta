@@ -332,6 +332,12 @@ export class AudioSystem {
       case 'menuConfirm':
         this._playMenuConfirm();
         break;
+      case 'playerDeath':
+        this._playPlayerDeath();
+        break;
+      case 'playerRespawn':
+        this._playPlayerRespawn();
+        break;
     }
   }
 
@@ -428,6 +434,32 @@ export class AudioSystem {
 
   _playMenuSelect() {
     this._playTone(440, 0.08, 0.06, 'sine', 0.005, 0.03);
+  }
+
+  _playPlayerDeath() {
+    this._playTone(120, 1.0, 0.15, 'sawtooth', 0.01, 0.5);
+    this._playTone(80, 1.2, 0.1, 'sine', 0.1, 0.6);
+    setTimeout(() => {
+      const bufferSize = this.ctx.sampleRate * 0.4;
+      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
+      }
+      const source = this.ctx.createBufferSource();
+      source.buffer = buffer;
+      const gainNode = this.ctx.createGain();
+      gainNode.gain.value = 0.1;
+      source.connect(gainNode);
+      gainNode.connect(this.sfxGain);
+      source.start();
+    }, 200);
+  }
+
+  _playPlayerRespawn() {
+    this._playTone(220, 0.6, 0.08, 'sine', 0.1, 0.3);
+    this._playTone(440, 0.8, 0.06, 'triangle', 0.2, 0.4);
+    this._playTone(660, 1.0, 0.04, 'sine', 0.4, 0.5);
   }
 
   _playMenuConfirm() {

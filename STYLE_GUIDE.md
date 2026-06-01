@@ -70,6 +70,7 @@
 - 算法艺术-侵蚀：assets/shaders/abyssal-erosion.html
 - 算法艺术-现实侵蚀：assets/shaders/reality-erosion.html
 - 动态背景生成器：assets/video/abyssal-descent.html
+- 宣传短片生成器：assets/video/abyssal-requiem.html
 - 结局抉择特效生成器：assets/shaders/ultimate-divergence.html
 
 ## Shader 风格参考

@@ -19,6 +19,7 @@ class SaveSystem {
       },
       endingsSeen: [],
       playTime: 0,
+      deathCount: 0,
       lastSaved: null,
     };
   }
@@ -99,6 +100,18 @@ class SaveSystem {
     const data = this.getData();
     data.playTime = (data.playTime || 0) + ms;
     this.save(data);
+  }
+
+  addDeath() {
+    const data = this.getData();
+    data.deathCount = (data.deathCount || 0) + 1;
+    this.save(data);
+    return data.deathCount;
+  }
+
+  getDeathCount() {
+    const data = this.getData();
+    return data.deathCount || 0;
   }
 
   hasSave() {

@@ -52,6 +52,19 @@ export class GameScene extends Scene {
     this._bgGradientKey = '';
     this._scanLineImage = null;
     this._scanLineDirty = true;
+    this.dying = false;
+    this.respawning = false;
+    this.deathTimer = 0;
+    this.respawnTimer = 0;
+    this.deathParticles = [];
+    this.respawnParticles = [];
+    this.deathTendrils = [];
+    this.deathAlpha = 0;
+    this.respawnAlpha = 0;
+    this.deathCount = 0;
+    this.playerDissolveProgress = 0;
+    this.respawnGlowRadius = 0;
+    this.respawnFlashAlpha = 0;
   }
 
   init() {
@@ -64,6 +77,7 @@ export class GameScene extends Scene {
     if (saveData && saveData.currentDepth > 0 && saveData.unlockedDepth >= saveData.currentDepth) {
       this.depth = saveData.currentDepth;
     }
+    this.deathCount = saveSystem.getDeathCount();
     this._loadLevel(this.depth);
     if (this.audio) {
       this.audio.playBGM(this.depth);
@@ -128,6 +142,18 @@ export class GameScene extends Scene {
     this.erosionLevel = 0;
     this.interactHint = '';
     this.interactHintAlpha = 0;
+    this.dying = false;
+    this.respawning = false;
+    this.deathTimer = 0;
+    this.respawnTimer = 0;
+    this.deathAlpha = 0;
+    this.respawnAlpha = 0;
+    this.playerDissolveProgress = 0;
+    this.respawnGlowRadius = 0;
+    this.respawnFlashAlpha = 0;
+    this.deathParticles = [];
+    this.respawnParticles = [];
+    this.deathTendrils = [];
 
     this.showingLevelIntro = true;
     this.levelIntroAlpha = 0;
@@ -229,6 +255,16 @@ export class GameScene extends Scene {
       return;
     }
 
+    if (this.dying) {
+      this._updateDeath(dt);
+      return;
+    }
+
+    if (this.respawning) {
+      this._updateRespawn(dt);
+      return;
+    }
+
     if (this._fadingIn) {
       this.transitionAlpha -= dt * 0.004;
       if (this.transitionAlpha <= 0) {
@@ -324,11 +360,8 @@ export class GameScene extends Scene {
 
     this.player.x = Math.max(20, Math.min(1260, this.player.x));
 
-    if (this.player.y > 750) {
-      this.player.x = this.currentLevel.playerStart.x;
-      this.player.y = this.currentLevel.playerStart.y;
-      this.player.vx = 0;
-      this.player.vy = 0;
+    if (this.player.y > 750 && !this.dying && !this.respawning) {
+      this._triggerDeath();
     }
 
     if (this.depth >= 1) {
@@ -421,7 +454,7 @@ export class GameScene extends Scene {
 
     this._updateInteractHint();
 
-    if (this.input.justPressed('Escape')) {
+    if (this.input.justPressed('Escape') && !this.dying && !this.respawning) {
       this.sceneManager.switchTo('pause');
     }
   }
@@ -599,6 +632,14 @@ export class GameScene extends Scene {
     } else if (this.transitionAlpha > 0) {
       ctx.fillStyle = `rgba(10, 14, 26, ${this.transitionAlpha})`;
       ctx.fillRect(-10, -10, w + 20, h + 20);
+    }
+
+    if (this.dying) {
+      this._renderDeath(ctx, w, h);
+    }
+
+    if (this.respawning) {
+      this._renderRespawn(ctx, w, h);
     }
 
     if (this.input.isMobile()) {
@@ -1102,9 +1143,15 @@ export class GameScene extends Scene {
     ctx.textAlign = 'right';
     ctx.fillText(depthText, w - 30, 30);
 
+    if (this.deathCount > 0) {
+      ctx.font = '300 11px "Segoe UI", system-ui, sans-serif';
+      ctx.fillStyle = 'rgba(255, 107, 53, 0.5)';
+      ctx.fillText(`深渊吞噬 ×${this.deathCount}`, w - 30, 48);
+    }
+
     ctx.font = '300 12px "Segoe UI", system-ui, sans-serif';
     ctx.fillStyle = 'rgba(107, 107, 141, 0.6)';
-    ctx.fillText(level.name, w - 30, 48);
+    ctx.fillText(level.name, w - 30, this.deathCount > 0 ? 64 : 48);
 
     ctx.restore();
   }
@@ -1402,6 +1449,311 @@ export class GameScene extends Scene {
       }
     }
     ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+
+  _triggerDeath() {
+    this.dying = true;
+    this.deathTimer = 0;
+    this.deathAlpha = 0;
+    this.playerDissolveProgress = 0;
+    this.deathCount = saveSystem.addDeath();
+    this.player.vx = 0;
+    this.player.vy = 0;
+
+    this.deathParticles = [];
+    for (let i = 0; i < 30; i++) {
+      this.deathParticles.push({
+        x: this.player.x + (Math.random() - 0.5) * 20,
+        y: this.player.y - 24 + (Math.random() - 0.5) * 40,
+        vx: (Math.random() - 0.5) * 2,
+        vy: Math.random() * 2 + 1,
+        size: Math.random() * 4 + 2,
+        alpha: 1,
+        color: Math.random() > 0.4 ? 'orange' : 'cyan',
+      });
+    }
+
+    this.deathTendrils = [];
+    for (let i = 0; i < 8; i++) {
+      const baseX = this.player.x + (Math.random() - 0.5) * 100;
+      const segments = [];
+      let cx = baseX;
+      let cy = 720;
+      const targetY = this.player.y - 24;
+      const steps = 6 + Math.floor(Math.random() * 4);
+      for (let j = 0; j < steps; j++) {
+        const nx = cx + (Math.random() - 0.5) * 30;
+        const ny = cy - (720 - targetY) / steps;
+        segments.push({ x1: cx, y1: cy, x2: nx, y2: ny });
+        cx = nx;
+        cy = ny;
+      }
+      this.deathTendrils.push({
+        segments,
+        growth: 0,
+        maxGrowth: steps,
+        alpha: 0.6 + Math.random() * 0.4,
+        width: 1 + Math.random() * 2,
+      });
+    }
+
+    if (this.audio) this.audio.playSFX('playerDeath');
+  }
+
+  _updateDeath(dt) {
+    this.deathTimer += dt;
+    const deathDuration = 1500;
+    const progress = Math.min(1, this.deathTimer / deathDuration);
+
+    if (progress <= 0.3) {
+      const t = progress / 0.3;
+      this.deathAlpha = t * 0.4;
+      this.playerDissolveProgress = 0;
+      for (const tendril of this.deathTendrils) {
+        tendril.growth = Math.min(tendril.maxGrowth, tendril.growth + dt * 0.015);
+      }
+    } else if (progress <= 0.7) {
+      const t = (progress - 0.3) / 0.4;
+      this.deathAlpha = 0.4 + t * 0.4;
+      this.playerDissolveProgress = t;
+      for (const p of this.deathParticles) {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.05;
+        p.alpha = Math.max(0, 1 - t * 1.2);
+        p.size *= 0.98;
+      }
+      for (const tendril of this.deathTendrils) {
+        tendril.growth = tendril.maxGrowth;
+        tendril.alpha = Math.max(0, tendril.alpha - dt * 0.001);
+      }
+    } else if (progress <= 1.0) {
+      const t = (progress - 0.7) / 0.3;
+      this.deathAlpha = 0.8 + t * 0.2;
+      this.playerDissolveProgress = 1;
+      for (const p of this.deathParticles) {
+        p.alpha = 0;
+      }
+      for (const tendril of this.deathTendrils) {
+        tendril.alpha = Math.max(0, tendril.alpha - dt * 0.003);
+      }
+    }
+
+    if (progress >= 1.0) {
+      this.dying = false;
+      this.deathAlpha = 1;
+      this._triggerRespawn();
+    }
+  }
+
+  _triggerRespawn() {
+    this.respawning = true;
+    this.respawnTimer = 0;
+    this.respawnAlpha = 1;
+    this.respawnGlowRadius = 0;
+    this.respawnFlashAlpha = 0;
+
+    this.player.x = this.currentLevel.playerStart.x;
+    this.player.y = this.currentLevel.playerStart.y;
+    this.player.vx = 0;
+    this.player.vy = 0;
+    this.player.onGround = false;
+    this.player.facing = 1;
+
+    this.respawnParticles = [];
+    for (let i = 0; i < 25; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 30 + Math.random() * 80;
+      this.respawnParticles.push({
+        x: this.player.x + Math.cos(angle) * dist,
+        y: this.player.y - 24 + Math.sin(angle) * dist,
+        targetX: this.player.x + (Math.random() - 0.5) * 10,
+        targetY: this.player.y - 24 + (Math.random() - 0.5) * 20,
+        size: Math.random() * 3 + 1,
+        alpha: 0,
+        delay: Math.random() * 400,
+        arrived: false,
+      });
+    }
+
+    if (this.audio) this.audio.playSFX('playerRespawn');
+  }
+
+  _updateRespawn(dt) {
+    this.respawnTimer += dt;
+    const respawnDuration = 1500;
+    const progress = Math.min(1, this.respawnTimer / respawnDuration);
+
+    if (progress <= 0.25) {
+      const t = progress / 0.25;
+      this.respawnAlpha = 1 - t * 0.5;
+      this.respawnGlowRadius = t * 40;
+      for (const p of this.respawnParticles) {
+        if (this.respawnTimer > p.delay) {
+          p.alpha = Math.min(1, p.alpha + dt * 0.005);
+        }
+      }
+    } else if (progress <= 0.6) {
+      const t = (progress - 0.25) / 0.35;
+      this.respawnAlpha = 0.5 - t * 0.3;
+      this.respawnGlowRadius = 40 + t * 30;
+      for (const p of this.respawnParticles) {
+        p.alpha = Math.min(1, p.alpha + dt * 0.005);
+        const dx = p.targetX - p.x;
+        const dy = p.targetY - p.y;
+        p.x += dx * 0.08;
+        p.y += dy * 0.08;
+        if (Math.abs(dx) < 3 && Math.abs(dy) < 3) {
+          p.arrived = true;
+        }
+      }
+    } else if (progress <= 0.85) {
+      const t = (progress - 0.6) / 0.25;
+      this.respawnAlpha = 0.2 - t * 0.15;
+      this.respawnGlowRadius = 70 + t * 20;
+      this.respawnFlashAlpha = t * 0.6;
+      for (const p of this.respawnParticles) {
+        p.x += (p.targetX - p.x) * 0.15;
+        p.y += (p.targetY - p.y) * 0.15;
+        p.alpha = Math.max(0, 1 - t);
+      }
+    } else {
+      const t = (progress - 0.85) / 0.15;
+      this.respawnAlpha = Math.max(0, 0.05 * (1 - t));
+      this.respawnGlowRadius = 90 * (1 - t);
+      this.respawnFlashAlpha = 0.6 * (1 - t);
+      for (const p of this.respawnParticles) {
+        p.alpha = 0;
+      }
+    }
+
+    if (progress >= 1.0) {
+      this.respawning = false;
+      this.respawnAlpha = 0;
+      this.respawnFlashAlpha = 0;
+      this.respawnGlowRadius = 0;
+      this.deathAlpha = 0;
+      this.deathParticles = [];
+      this.respawnParticles = [];
+      this.deathTendrils = [];
+      this.playerDissolveProgress = 0;
+    }
+  }
+
+  _renderDeath(ctx, w, h) {
+    ctx.save();
+
+    if (this.deathAlpha > 0) {
+      ctx.fillStyle = `rgba(10, 14, 26, ${this.deathAlpha})`;
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    const progress = Math.min(1, this.deathTimer / 1500);
+    if (progress > 0.15) {
+      const glowIntensity = Math.min(1, (progress - 0.15) / 0.5);
+      const pulse = Math.sin(this.time * 0.008) * 0.3 + 0.7;
+      const glow = ctx.createRadialGradient(
+        this.player.x, h, 0,
+        this.player.x, h, 300 * glowIntensity
+      );
+      glow.addColorStop(0, `rgba(255, 107, 53, ${0.3 * glowIntensity * pulse})`);
+      glow.addColorStop(0.5, `rgba(255, 0, 68, ${0.1 * glowIntensity * pulse})`);
+      glow.addColorStop(1, 'rgba(255, 107, 53, 0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    for (const tendril of this.deathTendrils) {
+      if (tendril.alpha <= 0) continue;
+      const visibleSegs = Math.floor(tendril.growth);
+      ctx.strokeStyle = `rgba(255, 107, 53, ${tendril.alpha})`;
+      ctx.lineWidth = tendril.width;
+      ctx.shadowColor = '#FF6B35';
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      let started = false;
+      for (let i = 0; i < Math.min(visibleSegs, tendril.segments.length); i++) {
+        const seg = tendril.segments[i];
+        if (!started) {
+          ctx.moveTo(seg.x1, seg.y1);
+          started = true;
+        }
+        ctx.lineTo(seg.x2, seg.y2);
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+
+    for (const p of this.deathParticles) {
+      if (p.alpha <= 0) continue;
+      ctx.globalAlpha = p.alpha;
+      const color = p.color === 'orange' ? '255, 107, 53' : '0, 255, 212';
+      ctx.fillStyle = `rgba(${color}, 1)`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    if (this.playerDissolveProgress > 0 && this.playerDissolveProgress < 1) {
+      ctx.globalAlpha = 1 - this.playerDissolveProgress;
+      this._renderPlayer(ctx);
+      ctx.globalAlpha = 1;
+    } else if (this.playerDissolveProgress >= 1) {
+      // player fully dissolved, don't render
+    }
+
+    ctx.restore();
+  }
+
+  _renderRespawn(ctx, w, h) {
+    ctx.save();
+
+    if (this.respawnAlpha > 0) {
+      ctx.fillStyle = `rgba(10, 14, 26, ${this.respawnAlpha})`;
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    if (this.respawnGlowRadius > 0) {
+      const pulse = Math.sin(this.time * 0.006) * 0.3 + 0.7;
+      const glow = ctx.createRadialGradient(
+        this.player.x, this.player.y - 24, 0,
+        this.player.x, this.player.y - 24, this.respawnGlowRadius
+      );
+      glow.addColorStop(0, `rgba(0, 255, 212, ${0.25 * pulse})`);
+      glow.addColorStop(0.4, `rgba(0, 136, 255, ${0.1 * pulse})`);
+      glow.addColorStop(1, 'rgba(0, 255, 212, 0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    for (const p of this.respawnParticles) {
+      if (p.alpha <= 0) continue;
+      ctx.globalAlpha = p.alpha;
+      ctx.fillStyle = COLORS.FLUORESCENT_CYAN;
+      ctx.shadowColor = COLORS.FLUORESCENT_CYAN;
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+    ctx.globalAlpha = 1;
+
+    const respawnProgress = Math.min(1, this.respawnTimer / 1500);
+    if (respawnProgress > 0.3) {
+      const materialize = Math.min(1, (respawnProgress - 0.3) / 0.4);
+      ctx.globalAlpha = materialize;
+      this._renderPlayer(ctx);
+      ctx.globalAlpha = 1;
+    }
+
+    if (this.respawnFlashAlpha > 0) {
+      ctx.fillStyle = `rgba(0, 255, 212, ${this.respawnFlashAlpha * 0.3})`;
+      ctx.fillRect(0, 0, w, h);
+    }
+
     ctx.restore();
   }
 

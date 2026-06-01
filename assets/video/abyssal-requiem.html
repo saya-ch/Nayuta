@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nayuta — Abyssal Requiem</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --anthropic-dark: #141413;
+            --anthropic-light: #faf9f5;
+            --anthropic-mid-gray: #b0aea5;
+            --anthropic-light-gray: #e8e6dc;
+            --anthropic-orange: #d97757;
+            --anthropic-blue: #6a9bcc;
+            --anthropic-green: #788c5d;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, var(--anthropic-light) 0%, #f5f3ee 100%);
+            min-height: 100vh;
+            color: var(--anthropic-dark);
+        }
+        .container { display: flex; min-height: 100vh; padding: 20px; gap: 20px; }
+        .sidebar {
+            width: 320px; flex-shrink: 0;
+            background: rgba(255,255,255,0.95); backdrop-filter: blur(10px);
+            padding: 24px; border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(20,20,19,0.1);
+            overflow-y: auto; overflow-x: hidden;
+        }
+        .sidebar h1 { font-family: 'Lora', serif; font-size: 22px; font-weight: 500; color: var(--anthropic-dark); margin-bottom: 4px; }
+        .sidebar .subtitle { color: var(--anthropic-mid-gray); font-size: 13px; margin-bottom: 24px; line-height: 1.4; }
+        .control-section { margin-bottom: 28px; }
+        .control-section h3 { font-size: 15px; font-weight: 600; color: var(--anthropic-dark); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+        .control-section h3::before { content: '•'; color: var(--anthropic-orange); font-weight: bold; }
+        .seed-input {
+            width: 100%; background: var(--anthropic-light); padding: 10px;
+            border-radius: 8px; font-family: 'Courier New', monospace; font-size: 14px;
+            margin-bottom: 10px; border: 1px solid var(--anthropic-light-gray); text-align: center;
+        }
+        .seed-input:focus { outline: none; border-color: var(--anthropic-orange); box-shadow: 0 0 0 2px rgba(217,119,87,0.1); background: white; }
+        .seed-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+        .control-group { margin-bottom: 16px; }
+        .control-group label { display: block; font-size: 13px; font-weight: 500; color: var(--anthropic-dark); margin-bottom: 6px; }
+        .slider-container { display: flex; align-items: center; gap: 10px; }
+        .slider-container input[type="range"] { flex: 1; height: 4px; background: var(--anthropic-light-gray); border-radius: 2px; outline: none; -webkit-appearance: none; }
+        .slider-container input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: var(--anthropic-orange); border-radius: 50%; cursor: pointer; }
+        .value-display { font-family: 'Courier New', monospace; font-size: 11px; color: var(--anthropic-mid-gray); min-width: 50px; text-align: right; }
+        .color-group { margin-bottom: 12px; }
+        .color-group label { display: block; font-size: 11px; color: var(--anthropic-mid-gray); margin-bottom: 3px; }
+        .color-picker-container { display: flex; align-items: center; gap: 8px; }
+        .color-picker-container input[type="color"] { width: 28px; height: 28px; border: none; border-radius: 6px; cursor: pointer; background: none; padding: 0; }
+        .color-value { font-family: 'Courier New', monospace; font-size: 11px; color: var(--anthropic-mid-gray); }
+        .button { background: var(--anthropic-orange); color: white; border: none; padding: 9px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s ease; width: 100%; }
+        .button:hover { background: #c86641; transform: translateY(-1px); }
+        .button.secondary { background: var(--anthropic-blue); }
+        .button.secondary:hover { background: #5a8bb8; }
+        .button.tertiary { background: var(--anthropic-green); }
+        .button.tertiary:hover { background: #6b7b52; }
+        .button-row { display: flex; gap: 8px; }
+        .button-row .button { flex: 1; }
+        .canvas-area { flex: 1; display: flex; align-items: center; justify-content: center; min-width: 0; }
+        #canvas-container { width: 100%; max-width: 960px; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 40px rgba(20,20,19,0.1); background: #0A0E1A; }
+        #canvas-container canvas { display: block; width: 100% !important; height: auto !important; }
+        .phase-indicator { font-size: 12px; color: var(--anthropic-mid-gray); margin-top: 8px; text-align: center; font-style: italic; }
+        @media (max-width: 600px) {
+            .container { flex-direction: column; }
+            .sidebar { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h1>Abyssal Requiem</h1>
+            <div class="subtitle">Nayuta 宣传短片生成器 — 五幕算法叙事</div>
+
+            <div class="control-section">
+                <h3>Seed</h3>
+                <input type="number" id="seed-input" class="seed-input" value="42" onchange="updateSeed()">
+                <div class="seed-controls">
+                    <button class="button secondary" onclick="previousSeed()">← Prev</button>
+                    <button class="button secondary" onclick="nextSeed()">Next →</button>
+                </div>
+                <button class="button tertiary" onclick="randomSeedAndUpdate()">↻ Random</button>
+            </div>
+
+            <div class="control-section">
+                <h3>叙事参数</h3>
+                <div class="control-group">
+                    <label>粒子数量</label>
+                    <div class="slider-container">
+                        <input type="range" id="particleCount" min="200" max="1200" step="50" value="600" oninput="updateParam('particleCount', this.value)">
+                        <span class="value-display" id="particleCount-value">600</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>叙事速度</label>
+                    <div class="slider-container">
+                        <input type="range" id="narrativeSpeed" min="0.3" max="2.0" step="0.1" value="1.0" oninput="updateParam('narrativeSpeed', this.value)">
+                        <span class="value-display" id="narrativeSpeed-value">1.0</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>引力强度</label>
+                    <div class="slider-container">
+                        <input type="range" id="gravityStrength" min="0.5" max="3.0" step="0.1" value="1.5" oninput="updateParam('gravityStrength', this.value)">
+                        <span class="value-display" id="gravityStrength-value">1.5</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>侵蚀强度</label>
+                    <div class="slider-container">
+                        <input type="range" id="erosionIntensity" min="0.0" max="1.0" step="0.05" value="0.5" oninput="updateParam('erosionIntensity', this.value)">
+                        <span class="value-display" id="erosionIntensity-value">0.5</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>之眼脉动</label>
+                    <div class="slider-container">
+                        <input type="range" id="eyePulse" min="0.5" max="3.0" step="0.1" value="1.2" oninput="updateParam('eyePulse', this.value)">
+                        <span class="value-display" id="eyePulse-value">1.2</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>色彩</h3>
+                <div class="color-group">
+                    <label>深渊底色</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="colorAbyss" value="#0A0E1A" onchange="updateColor('colorAbyss', this.value)">
+                        <span class="color-value" id="colorAbyss-value">#0A0E1A</span>
+                    </div>
+                </div>
+                <div class="color-group">
+                    <label>荧光青</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="colorCyan" value="#00FFD4" onchange="updateColor('colorCyan', this.value)">
+                        <span class="color-value" id="colorCyan-value">#00FFD4</span>
+                    </div>
+                </div>
+                <div class="color-group">
+                    <label>虚空橙</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="colorOrange" value="#FF6B35" onchange="updateColor('colorOrange', this.value)">
+                        <span class="color-value" id="colorOrange-value">#FF6B35</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>控制</h3>
+                <div class="button-row" style="margin-bottom:8px;">
+                    <button class="button" onclick="togglePlayback()">暂停/播放</button>
+                    <button class="button secondary" onclick="restartNarrative()">重新开始</button>
+                </div>
+                <button class="button tertiary" onclick="resetParameters()">重置参数</button>
+                <div class="phase-indicator" id="phase-display">第一幕：觉醒</div>
+            </div>
+        </div>
+
+        <div class="canvas-area">
+            <div id="canvas-container"></div>
+        </div>
+    </div>
+
+    <script>
+        let params = {
+            seed: 42,
+            particleCount: 600,
+            narrativeSpeed: 1.0,
+            gravityStrength: 1.5,
+            erosionIntensity: 0.5,
+            eyePulse: 1.2,
+            colorAbyss: '#0A0E1A',
+            colorCyan: '#00FFD4',
+            colorOrange: '#FF6B35'
+        };
+        let defaultParams = JSON.parse(JSON.stringify(params));
+
+        let particles = [];
+        let narrativeTime = 0;
+        let playing = true;
+        let currentPhase = 0;
+        let phaseNames = ['觉醒', '坠落', '凝视', '抉择', '回响'];
+        let cracks = [];
+        let tendrils = [];
+
+        function hexToRgb(hex) {
+            let r = parseInt(hex.slice(1,3), 16);
+            let g = parseInt(hex.slice(3,5), 16);
+            let b = parseInt(hex.slice(5,7), 16);
+            return { r, g, b };
+        }
+
+        function setup() {
+            let canvas = createCanvas(1280, 720);
+            canvas.parent('canvas-container');
+            initializeSystem();
+        }
+
+        function initializeSystem() {
+            randomSeed(params.seed);
+            noiseSeed(params.seed);
+            narrativeTime = 0;
+            particles = [];
+            cracks = [];
+            tendrils = [];
+
+            for (let i = 0; i < params.particleCount; i++) {
+                particles.push({
+                    x: random(width),
+                    y: random(height),
+                    vx: 0,
+                    vy: 0,
+                    size: random(1, 4),
+                    baseAlpha: random(0.2, 0.8),
+                    phase: random(TWO_PI),
+                    born: random(-200, 0),
+                    depth: random(1),
+                    trail: []
+                });
+            }
+
+            for (let i = 0; i < 5; i++) {
+                let edge = floor(random(4));
+                let sx, sy, angle;
+                if (edge === 0) { sx = random(width); sy = 0; angle = random(PI*0.2, PI*0.8); }
+                else if (edge === 1) { sx = random(width); sy = height; angle = random(-PI*0.8, -PI*0.2); }
+                else if (edge === 2) { sx = 0; sy = random(height); angle = random(-PI*0.3, PI*0.3); }
+                else { sx = width; sy = random(height); angle = random(PI*0.7, PI*1.3); }
+                let segs = [];
+                let cx = sx, cy = sy, ca = angle;
+                let numSegs = floor(random(4, 8));
+                for (let j = 0; j < numSegs; j++) {
+                    let len = random(15, 40);
+                    let nx = cx + cos(ca) * len;
+                    let ny = cy + sin(ca) * len;
+                    segs.push({ x1: cx, y1: cy, x2: nx, y2: ny });
+                    cx = nx; cy = ny;
+                    ca += random(-0.6, 0.6);
+                }
+                cracks.push({ segments: segs, growth: 0, maxGrowth: numSegs });
+            }
+
+            for (let i = 0; i < 6; i++) {
+                let baseX = random(width * 0.2, width * 0.8);
+                let segs = [];
+                let cx = baseX, cy = height;
+                let steps = floor(random(5, 10));
+                for (let j = 0; j < steps; j++) {
+                    let nx = cx + random(-25, 25);
+                    let ny = cy - (height * 0.6) / steps;
+                    segs.push({ x1: cx, y1: cy, x2: nx, y2: ny });
+                    cx = nx; cy = ny;
+                }
+                tendrils.push({ segments: segs, growth: 0, maxGrowth: steps, alpha: random(0.3, 0.7) });
+            }
+        }
+
+        function getPhaseInfo() {
+            let totalDuration = 15000 / params.narrativeSpeed;
+            let phaseDuration = totalDuration / 5;
+            let phaseIndex = floor(narrativeTime / phaseDuration);
+            let phaseProgress = (narrativeTime % phaseDuration) / phaseDuration;
+            return { index: min(phaseIndex, 4), progress: phaseProgress, phaseDuration };
+        }
+
+        function draw() {
+            if (!playing) return;
+
+            let dt = deltaTime;
+            narrativeTime += dt * params.narrativeSpeed;
+
+            let totalDuration = 15000 / params.narrativeSpeed;
+            if (narrativeTime >= totalDuration) {
+                narrativeTime = totalDuration;
+                playing = false;
+            }
+
+            let info = getPhaseInfo();
+            currentPhase = info.index;
+
+            let abyssRgb = hexToRgb(params.colorAbyss);
+            background(abyssRgb.r, abyssRgb.g, abyssRgb.b);
+
+            renderBackgroundGradient(info);
+            renderParticles(info, dt);
+            renderPhaseEffects(info);
+            renderErosionOverlay(info);
+            renderNarrativeText(info);
+
+            let phaseEl = document.getElementById('phase-display');
+            if (phaseEl) {
+                phaseEl.textContent = `第${['一','二','三','四','五'][currentPhase]}幕：${phaseNames[currentPhase]}`;
+            }
+        }
+
+        function renderBackgroundGradient(info) {
+            let phaseColors = [
+                [{ r:26, g:39, b:68 }, { r:10, g:14, b:26 }],
+                [{ r:26, g:16, b:53 }, { r:10, g:14, b:26 }],
+                [{ r:42, g:10, b:26 }, { r:10, g:14, b:26 }],
+                [{ r:26, g:16, b:53 }, { r:42, g:10, b:26 }],
+                [{ r:10, g:0, b:5 }, { r:10, g:14, b:26 }]
+            ];
+            let topC = phaseColors[info.index][0];
+            let botC = phaseColors[info.index][1];
+            let t = info.progress;
+            let nextIdx = min(info.index + 1, 4);
+            let nextTop = phaseColors[nextIdx][0];
+            let nextBot = phaseColors[nextIdx][1];
+            let blendTop = { r: lerp(topC.r, nextTop.r, t * 0.3), g: lerp(topC.g, nextTop.g, t * 0.3), b: lerp(topC.b, nextTop.b, t * 0.3) };
+            let blendBot = { r: lerp(botC.r, nextBot.r, t * 0.3), g: lerp(botC.g, nextBot.g, t * 0.3), b: lerp(botC.b, nextBot.b, t * 0.3) };
+
+            let grad = drawingContext.createLinearGradient(0, 0, 0, height);
+            grad.addColorStop(0, `rgb(${blendTop.r},${blendTop.g},${blendTop.b})`);
+            grad.addColorStop(1, `rgb(${blendBot.r},${blendBot.g},${blendBot.b})`);
+            drawingContext.fillStyle = grad;
+            drawingContext.fillRect(0, 0, width, height);
+        }
+
+        function renderParticles(info, dt) {
+            let cyanRgb = hexToRgb(params.colorCyan);
+            let orangeRgb = hexToRgb(params.colorOrange);
+            let cx = width / 2;
+            let cy = height / 2;
+
+            for (let p of particles) {
+                if (narrativeTime < p.born) continue;
+
+                let age = narrativeTime - p.born;
+                let fadeIn = min(1, age / 500);
+
+                let fx = 0, fy = 0;
+
+                if (info.index === 0) {
+                    fy = -0.3;
+                    fx = sin(p.phase + narrativeTime * 0.001) * 0.2;
+                } else if (info.index === 1) {
+                    let grav = params.gravityStrength * 0.5;
+                    fy = grav;
+                    fx = sin(p.phase + narrativeTime * 0.0008) * 0.5;
+                    let spiral = cos(p.phase + narrativeTime * 0.001) * 0.3;
+                    fx += spiral;
+                } else if (info.index === 2) {
+                    let dx = cx - p.x;
+                    let dy = cy - p.y;
+                    let dist = max(1, sqrt(dx * dx + dy * dy));
+                    let force = params.gravityStrength * 50 / dist;
+                    fx = (dx / dist) * force * 0.05;
+                    fy = (dy / dist) * force * 0.05;
+                    fx += sin(p.phase + narrativeTime * 0.002) * 0.3;
+                    fy += cos(p.phase + narrativeTime * 0.002) * 0.3;
+                } else if (info.index === 3) {
+                    let leftX = width * 0.3;
+                    let rightX = width * 0.7;
+                    let targetX = p.depth < 0.5 ? leftX : rightX;
+                    let dx = targetX - p.x;
+                    let dy = cy - p.y;
+                    let dist = max(1, sqrt(dx * dx + dy * dy));
+                    let force = params.gravityStrength * 30 / dist;
+                    fx = (dx / dist) * force * 0.04;
+                    fy = (dy / dist) * force * 0.02;
+                } else {
+                    fx = (random() - 0.5) * 0.1;
+                    fy = -0.1;
+                }
+
+                p.vx += fx * 0.1;
+                p.vy += fy * 0.1;
+                p.vx *= 0.96;
+                p.vy *= 0.96;
+                p.x += p.vx;
+                p.y += p.vy;
+
+                if (p.x < -20) p.x = width + 20;
+                if (p.x > width + 20) p.x = -20;
+                if (p.y < -20) p.y = height + 20;
+                if (p.y > height + 20) p.y = -20;
+
+                let colorBlend = 0;
+                if (info.index >= 1) colorBlend = min(1, (info.index - 1 + info.progress) / 3);
+                if (info.index === 3) {
+                    colorBlend = p.depth < 0.5 ? 0 : 1;
+                }
+
+                let r = lerp(cyanRgb.r, orangeRgb.r, colorBlend);
+                let g = lerp(cyanRgb.g, orangeRgb.g, colorBlend);
+                let b = lerp(cyanRgb.b, orangeRgb.b, colorBlend);
+
+                let alpha = p.baseAlpha * fadeIn;
+                if (info.index === 4) {
+                    alpha *= max(0, 1 - info.progress * 0.8);
+                }
+
+                noStroke();
+                fill(r, g, b, alpha * 255);
+                ellipse(p.x, p.y, p.size, p.size);
+
+                if (p.size > 2 && alpha > 0.3) {
+                    fill(r, g, b, alpha * 40);
+                    ellipse(p.x, p.y, p.size * 4, p.size * 4);
+                }
+            }
+        }
+
+        function renderPhaseEffects(info) {
+            let cyanRgb = hexToRgb(params.colorCyan);
+            let orangeRgb = hexToRgb(params.colorOrange);
+            let cx = width / 2;
+            let cy = height / 2;
+
+            if (info.index === 2 || (info.index === 1 && info.progress > 0.7)) {
+                let eyeProgress = info.index === 1 ? (info.progress - 0.7) / 0.3 : 1;
+                let pulse = sin(narrativeTime * 0.003 * params.eyePulse) * 0.3 + 0.7;
+                let eyeW = 80 * eyeProgress * pulse;
+                let eyeH = 50 * eyeProgress * pulse;
+
+                for (let layer = 3; layer >= 0; layer--) {
+                    let layerScale = 1 + layer * 0.6;
+                    let layerAlpha = (0.08 - layer * 0.015) * eyeProgress;
+                    let glow = drawingContext.createRadialGradient(cx, cy, 0, cx, cy, eyeW * layerScale * 2);
+                    glow.addColorStop(0, `rgba(${orangeRgb.r},${orangeRgb.g},${orangeRgb.b},${layerAlpha})`);
+                    glow.addColorStop(1, `rgba(${orangeRgb.r},${orangeRgb.g},${orangeRgb.b},0)`);
+                    drawingContext.fillStyle = glow;
+                    drawingContext.fillRect(0, 0, width, height);
+                }
+
+                drawingContext.save();
+                drawingContext.beginPath();
+                drawingContext.ellipse(cx, cy, eyeW, eyeH, 0, 0, TWO_PI);
+                drawingContext.fillStyle = `rgba(${orangeRgb.r},${orangeRgb.g},${orangeRgb.b},${0.3 * eyeProgress * pulse})`;
+                drawingContext.fill();
+                drawingContext.restore();
+
+                drawingContext.beginPath();
+                drawingContext.ellipse(cx, cy, eyeW * 0.4, eyeH * 0.5, 0, 0, TWO_PI);
+                drawingContext.fillStyle = `rgba(10,0,5,${0.8 * eyeProgress})`;
+                drawingContext.fill();
+
+                drawingContext.beginPath();
+                drawingContext.ellipse(cx, cy, eyeW * 0.15, eyeH * 0.2, 0, 0, TWO_PI);
+                drawingContext.fillStyle = `rgba(${orangeRgb.r},${orangeRgb.g},${orangeRgb.b},${0.9 * eyeProgress * pulse})`;
+                drawingContext.shadowColor = params.colorOrange;
+                drawingContext.shadowBlur = 20;
+                drawingContext.fill();
+                drawingContext.shadowBlur = 0;
+            }
+
+            if (info.index === 3) {
+                let leftX = width * 0.3;
+                let rightX = width * 0.7;
+                let pulse = sin(narrativeTime * 0.004) * 0.3 + 0.7;
+
+                let leftGlow = drawingContext.createRadialGradient(leftX, cy, 0, leftX, cy, 120 * pulse);
+                leftGlow.addColorStop(0, `rgba(${cyanRgb.r},${cyanRgb.g},${cyanRgb.b},${0.15 * info.progress})`);
+                leftGlow.addColorStop(1, `rgba(${cyanRgb.r},${cyanRgb.g},${cyanRgb.b},0)`);
+                drawingContext.fillStyle = leftGlow;
+                drawingContext.fillRect(0, 0, width, height);
+
+                let rightGlow = drawingContext.createRadialGradient(rightX, cy, 0, rightX, cy, 120 * pulse);
+                rightGlow.addColorStop(0, `rgba(${orangeRgb.r},${orangeRgb.g},${orangeRgb.b},${0.15 * info.progress})`);
+                rightGlow.addColorStop(1, `rgba(${orangeRgb.r},${orangeRgb.g},${orangeRgb.b},0)`);
+                drawingContext.fillStyle = rightGlow;
+                drawingContext.fillRect(0, 0, width, height);
+
+                let tearAlpha = info.progress * 0.4 * pulse;
+                drawingContext.strokeStyle = `rgba(${orangeRgb.r},${orangeRgb.g},${orangeRgb.b},${tearAlpha})`;
+                drawingContext.lineWidth = 2;
+                drawingContext.beginPath();
+                for (let y = cy - 100; y < cy + 100; y += 5) {
+                    let x = cx + sin(y * 0.05 + narrativeTime * 0.002) * 10;
+                    if (y === cy - 100) drawingContext.moveTo(x, y);
+                    else drawingContext.lineTo(x, y);
+                }
+                drawingContext.stroke();
+            }
+
+            if (info.index === 1 || info.index === 2) {
+                let tendrilProgress = info.index === 1 ? info.progress * 0.3 : min(1, 0.3 + info.progress * 0.7);
+                for (let tendril of tendrils) {
+                    tendril.growth = min(tendril.maxGrowth, tendril.maxGrowth * tendrilProgress);
+                    let visibleSegs = floor(tendril.growth);
+                    if (visibleSegs <= 0) continue;
+                    drawingContext.strokeStyle = `rgba(${orangeRgb.r},${orangeRgb.g},${orangeRgb.b},${tendril.alpha * tendrilProgress})`;
+                    drawingContext.lineWidth = 1.5;
+                    drawingContext.shadowColor = params.colorOrange;
+                    drawingContext.shadowBlur = 6;
+                    drawingContext.beginPath();
+                    let started = false;
+                    for (let i = 0; i < min(visibleSegs, tendril.segments.length); i++) {
+                        let seg = tendril.segments[i];
+                        if (!started) { drawingContext.moveTo(seg.x1, seg.y1); started = true; }
+                        drawingContext.lineTo(seg.x2, seg.y2);
+                    }
+                    drawingContext.stroke();
+                    drawingContext.shadowBlur = 0;
+                }
+            }
+        }
+
+        function renderErosionOverlay(info) {
+            let intensity = params.erosionIntensity;
+            if (intensity <= 0) return;
+
+            let erosionLevel = 0;
+            if (info.index === 1) erosionLevel = info.progress * 0.3;
+            else if (info.index === 2) erosionLevel = 0.3 + info.progress * 0.3;
+            else if (info.index === 3) erosionLevel = 0.6 + info.progress * 0.4;
+            else if (info.index === 4) erosionLevel = 1.0;
+
+            erosionLevel *= intensity;
+
+            if (erosionLevel > 0.1) {
+                drawingContext.save();
+                drawingContext.globalAlpha = erosionLevel * 0.04;
+                drawingContext.fillStyle = 'rgba(10,14,26,1)';
+                for (let y = 0; y < height; y += 3) {
+                    drawingContext.fillRect(0, y, width, 1);
+                }
+                drawingContext.restore();
+            }
+
+            if (erosionLevel > 0.4) {
+                let orangeRgb = hexToRgb(params.colorOrange);
+                for (let crack of cracks) {
+                    crack.growth = min(crack.maxGrowth, crack.maxGrowth * erosionLevel);
+                    let visibleSegs = floor(crack.growth);
+                    if (visibleSegs <= 0) continue;
+                    let flicker = sin(narrativeTime * 0.005) * 0.3 + 0.7;
+                    drawingContext.strokeStyle = `rgba(${orangeRgb.r},${orangeRgb.g},${orangeRgb.b},${0.3 * erosionLevel * flicker})`;
+                    drawingContext.lineWidth = 1.5;
+                    drawingContext.shadowColor = params.colorOrange;
+                    drawingContext.shadowBlur = 5;
+                    drawingContext.beginPath();
+                    let started = false;
+                    for (let i = 0; i < min(visibleSegs, crack.segments.length); i++) {
+                        let seg = crack.segments[i];
+                        if (!started) { drawingContext.moveTo(seg.x1, seg.y1); started = true; }
+                        drawingContext.lineTo(seg.x2, seg.y2);
+                    }
+                    drawingContext.stroke();
+                    drawingContext.shadowBlur = 0;
+                }
+            }
+
+            if (erosionLevel > 0.2) {
+                let vignette = drawingContext.createRadialGradient(width/2, height/2, width*0.3, width/2, height/2, width*0.7);
+                vignette.addColorStop(0, 'rgba(10,14,26,0)');
+                vignette.addColorStop(1, `rgba(10,0,5,${erosionLevel * 0.3})`);
+                drawingContext.fillStyle = vignette;
+                drawingContext.fillRect(0, 0, width, height);
+            }
+        }
+
+        function renderNarrativeText(info) {
+            let cyanRgb = hexToRgb(params.colorCyan);
+            let orangeRgb = hexToRgb(params.colorOrange);
+            let moonR = 232, moonG = 230, moonB = 240;
+            let grayR = 107, grayG = 107, grayB = 141;
+
+            drawingContext.save();
+            drawingContext.textAlign = 'center';
+            drawingContext.textBaseline = 'middle';
+
+            if (info.index === 0) {
+                let titleAlpha = info.progress > 0.3 ? min(1, (info.progress - 0.3) / 0.4) : 0;
+                if (titleAlpha > 0) {
+                    let pulse = sin(narrativeTime * 0.003) * 0.2 + 0.8;
+                    drawingContext.font = '600 64px "Segoe UI", system-ui, sans-serif';
+                    drawingContext.fillStyle = `rgba(${moonR},${moonG},${moonB},${titleAlpha * pulse})`;
+                    drawingContext.shadowColor = params.colorCyan;
+                    drawingContext.shadowBlur = 30 * titleAlpha;
+                    drawingContext.fillText('NAYUTA', width/2, height * 0.42);
+                    drawingContext.shadowBlur = 0;
+
+                    drawingContext.font = '300 20px "Segoe UI", system-ui, sans-serif';
+                    drawingContext.fillStyle = `rgba(${grayR},${grayG},${grayB},${titleAlpha * 0.7})`;
+                    drawingContext.fillText('那由他之梦', width/2, height * 0.52);
+
+                    if (info.progress > 0.6) {
+                        let subAlpha = min(1, (info.progress - 0.6) / 0.3);
+                        drawingContext.font = '300 14px "Segoe UI", system-ui, sans-serif';
+                        drawingContext.fillStyle = `rgba(${cyanRgb.r},${cyanRgb.g},${cyanRgb.b},${subAlpha * 0.5})`;
+                        drawingContext.fillText('在破碎记忆的深渊中，寻找失落的真实', width/2, height * 0.6);
+                    }
+                }
+            }
+
+            if (info.index === 1) {
+                let depthNum = floor(info.progress * 4) + 1;
+                let depthAlpha = sin(info.progress * PI) * 0.6;
+                drawingContext.font = '600 48px "Segoe UI", system-ui, sans-serif';
+                drawingContext.fillStyle = `rgba(${cyanRgb.r},${cyanRgb.g},${cyanRgb.b},${depthAlpha})`;
+                drawingContext.shadowColor = params.colorCyan;
+                drawingContext.shadowBlur = 20;
+                drawingContext.fillText(`深度 ${depthNum}`, width/2, height * 0.45);
+                drawingContext.shadowBlur = 0;
+            }
+
+            if (info.index === 2) {
+                let eyeAlpha = sin(info.progress * PI) * 0.5;
+                drawingContext.font = '300 18px "Segoe UI", system-ui, sans-serif';
+                drawingContext.fillStyle = `rgba(${orangeRgb.r},${orangeRgb.g},${orangeRgb.b},${eyeAlpha})`;
+                drawingContext.fillText('深渊在凝视你', width/2, height * 0.82);
+            }
+
+            if (info.index === 3) {
+                let choiceAlpha = min(1, info.progress * 2);
+                drawingContext.font = '300 16px "Segoe UI", system-ui, sans-serif';
+                drawingContext.fillStyle = `rgba(${cyanRgb.r},${cyanRgb.g},${cyanRgb.b},${choiceAlpha * 0.7})`;
+                drawingContext.fillText('回归虚无', width * 0.3, height * 0.82);
+                drawingContext.fillStyle = `rgba(${orangeRgb.r},${orangeRgb.g},${orangeRgb.b},${choiceAlpha * 0.7})`;
+                drawingContext.fillText('凝视深渊', width * 0.7, height * 0.82);
+            }
+
+            if (info.index === 4) {
+                let endAlpha = min(1, info.progress * 1.5);
+                drawingContext.font = '600 42px "Segoe UI", system-ui, sans-serif';
+                drawingContext.fillStyle = `rgba(${moonR},${moonG},${moonB},${endAlpha * 0.8})`;
+                drawingContext.shadowColor = params.colorCyan;
+                drawingContext.shadowBlur = 25 * endAlpha;
+                drawingContext.fillText('NAYUTA', width/2, height * 0.4);
+                drawingContext.shadowBlur = 0;
+
+                drawingContext.font = '300 16px "Segoe UI", system-ui, sans-serif';
+                drawingContext.fillStyle = `rgba(${grayR},${grayG},${grayB},${endAlpha * 0.6})`;
+                drawingContext.fillText('那由他——不可计数之遥远', width/2, height * 0.5);
+
+                if (info.progress > 0.4) {
+                    let linkAlpha = min(1, (info.progress - 0.4) / 0.3);
+                    drawingContext.font = '300 13px "Segoe UI", system-ui, sans-serif';
+                    drawingContext.fillStyle = `rgba(${cyanRgb.r},${cyanRgb.g},${cyanRgb.b},${linkAlpha * 0.4})`;
+                    drawingContext.fillText('saya-ch.github.io/Nayuta', width/2, height * 0.6);
+                }
+            }
+
+            drawingContext.restore();
+        }
+
+        function togglePlayback() {
+            playing = !playing;
+            if (playing && narrativeTime >= 15000 / params.narrativeSpeed) {
+                narrativeTime = 0;
+            }
+        }
+
+        function restartNarrative() {
+            narrativeTime = 0;
+            playing = true;
+            initializeSystem();
+        }
+
+        function updateParam(name, value) {
+            params[name] = parseFloat(value);
+            document.getElementById(name + '-value').textContent = value;
+        }
+
+        function updateColor(name, value) {
+            params[name] = value;
+            document.getElementById(name + '-value').textContent = value;
+        }
+
+        function updateSeedDisplay() {
+            document.getElementById('seed-input').value = params.seed;
+        }
+
+        function updateSeed() {
+            let input = document.getElementById('seed-input');
+            let newSeed = parseInt(input.value);
+            if (newSeed && newSeed > 0) {
+                params.seed = newSeed;
+                initializeSystem();
+            } else {
+                updateSeedDisplay();
+            }
+        }
+
+        function previousSeed() {
+            params.seed = Math.max(1, params.seed - 1);
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function nextSeed() {
+            params.seed = params.seed + 1;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function randomSeedAndUpdate() {
+            params.seed = Math.floor(Math.random() * 999999) + 1;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function resetParameters() {
+            params = JSON.parse(JSON.stringify(defaultParams));
+            document.getElementById('particleCount').value = params.particleCount;
+            document.getElementById('particleCount-value').textContent = params.particleCount;
+            document.getElementById('narrativeSpeed').value = params.narrativeSpeed;
+            document.getElementById('narrativeSpeed-value').textContent = params.narrativeSpeed;
+            document.getElementById('gravityStrength').value = params.gravityStrength;
+            document.getElementById('gravityStrength-value').textContent = params.gravityStrength;
+            document.getElementById('erosionIntensity').value = params.erosionIntensity;
+            document.getElementById('erosionIntensity-value').textContent = params.erosionIntensity;
+            document.getElementById('eyePulse').value = params.eyePulse;
+            document.getElementById('eyePulse-value').textContent = params.eyePulse;
+            document.getElementById('colorAbyss').value = params.colorAbyss;
+            document.getElementById('colorAbyss-value').textContent = params.colorAbyss;
+            document.getElementById('colorCyan').value = params.colorCyan;
+            document.getElementById('colorCyan-value').textContent = params.colorCyan;
+            document.getElementById('colorOrange').value = params.colorOrange;
+            document.getElementById('colorOrange-value').textContent = params.colorOrange;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        window.addEventListener('load', function() {
+            updateSeedDisplay();
+        });
+    </script>
+</body>
+</html>
